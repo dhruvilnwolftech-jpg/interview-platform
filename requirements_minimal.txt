@@ -2,7 +2,7 @@ flask==2.3.3
 flask-socketio==5.3.4
 python-socketio==5.9.0
 python-engineio==4.7.1
-websocket-client==10.4
+websocket-client
 flask-sqlalchemy==3.0.5
 sqlalchemy==1.4.48
 python-dotenv==1.0.0
