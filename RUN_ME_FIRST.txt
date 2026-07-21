@@ -1,0 +1,460 @@
+================================================================================
+                    INTERVIEW PLATFORM - RUN ME FIRST
+================================================================================
+
+Welcome! This file contains the EXACT steps to run the entire application.
+
+================================================================================
+STEP 0: VERIFY SETUP
+================================================================================
+
+1. Make sure you have Python 3.10+
+   Command: python --version
+   
+2. Make sure pip works
+   Command: pip --version
+   
+3. Make sure port 5000 is free
+   Command: netstat -ano | findstr :5000
+   (If something shows up, that port is in use - see troubleshooting)
+
+================================================================================
+STEP 1: INSTALL DEPENDENCIES (2 MINUTES)
+================================================================================
+
+1. Open Command Prompt or PowerShell
+
+2. Navigate to project:
+   cd C:\Users\dell\Desktop\my_project
+
+3. Install requirements:
+   pip install -r requirements.txt
+
+   Wait for it to complete. You should see:
+   "Successfully installed flask-2.3.3 flask-socketio-5.3.4 ..."
+
+✅ DONE: Dependencies installed
+
+================================================================================
+STEP 2: START BACKEND SERVER (Terminal 1 - KEEP THIS RUNNING)
+================================================================================
+
+1. Open a NEW terminal/command prompt
+
+2. Navigate to backend:
+   cd C:\Users\dell\Desktop\my_project\backend
+
+3. Start the server:
+   python server.py
+
+   You should see:
+   "Starting Interview Platform Backend Server..."
+   "Server running on http://localhost:5000"
+
+✅ KEEP THIS TERMINAL OPEN - This is your backend server!
+
+================================================================================
+STEP 3: TEST BACKEND APIs (Terminal 2)
+================================================================================
+
+1. Open ANOTHER NEW terminal/command prompt
+
+2. Navigate to tests:
+   cd C:\Users\dell\Desktop\my_project\tests
+
+3. Run API tests:
+   python test_api.py
+
+   You should see:
+   "RESULTS: 8 passed, 0 failed"
+
+✅ BACKEND IS WORKING!
+
+================================================================================
+STEP 4: RUN INTEGRATION TESTS (Terminal 2 - same terminal is fine)
+================================================================================
+
+1. In same terminal (after API tests), run:
+   python integration_test.py
+
+   You should see:
+   "RESULTS: 12 passed, 0 failed"
+
+✅ FULL SYSTEM INTEGRATION WORKING!
+
+================================================================================
+STEP 5: START SUPPORT PERSON APP (Terminal 3)
+================================================================================
+
+1. Open ANOTHER NEW terminal/command prompt
+
+2. Navigate to support app:
+   cd C:\Users\dell\Desktop\my_project\support_person_app
+
+3. Run the app:
+   python main.py
+
+   You should see:
+   - New window opens
+   - "Interview Support" at top
+   - "Create New Session" button
+   - "View Active Sessions" button
+
+✅ SUPPORT PERSON APP RUNNING!
+
+================================================================================
+STEP 6: START USER APP (Terminal 4)
+================================================================================
+
+1. Open ANOTHER NEW terminal/command prompt
+
+2. Navigate to user app:
+   cd C:\Users\dell\Desktop\my_project\user_app
+
+3. Run the app:
+   python main.py
+
+   You should see:
+   - New window opens
+   - "Interview Session" at top
+   - Code input field
+   - Text: "Enter the 6-digit code..."
+
+✅ USER APP RUNNING!
+
+================================================================================
+STEP 7: CREATE SESSION (Support Person App)
+================================================================================
+
+In the Support Person app window (from Step 5):
+
+1. Click "Create New Session"
+
+2. Wait 2-3 seconds
+
+3. A 6-digit code appears at the top
+   Example: ABC123
+
+📝 COPY THIS CODE - You'll need it in the next step!
+
+✅ SESSION CREATED!
+
+================================================================================
+STEP 8: JOIN SESSION (User App)
+================================================================================
+
+In the User app window (from Step 6):
+
+1. In the code input field, paste the 6-digit code from Step 7
+   Example: ABC123
+
+2. Click "Join Session"
+
+3. Wait 2-3 seconds
+
+4. The app shows "Connected as User"
+
+5. A document area appears below
+
+✅ USER JOINED SESSION!
+
+================================================================================
+STEP 9: TEST REAL-TIME SYNC
+================================================================================
+
+Now test that everything syncs in real-time:
+
+In Support Person app:
+1. Type: "Hello from Support Person"
+2. Watch the User app
+3. The text INSTANTLY appears in User app
+
+In User app:
+1. Type more text below
+2. Watch Support Person app
+3. The text INSTANTLY appears in Support Person app
+
+✅ REAL-TIME SYNC WORKING!
+
+================================================================================
+STEP 10: TEST DOCUMENT CUSTOMIZATION
+================================================================================
+
+In Support Person app:
+1. Click "Settings" button
+2. Change Font Size to 18
+3. Change Background Color to #FFFF00 (yellow)
+4. Click "Apply"
+
+Watch both apps:
+- Both show larger text
+- Both show yellow background
+- Changes appear instantly
+
+✅ CUSTOMIZATION WORKING!
+
+================================================================================
+STEP 11: START ADMIN APP (Terminal 5)
+================================================================================
+
+1. Open ANOTHER NEW terminal/command prompt
+
+2. Navigate to admin app:
+   cd C:\Users\dell\Desktop\my_project\admin_app
+
+3. Run the app:
+   python main.py
+
+   You should see:
+   - New window opens
+   - "Admin Dashboard" at top
+   - "Refresh Sessions" button
+
+✅ ADMIN APP RUNNING!
+
+================================================================================
+STEP 12: TEST ADMIN MONITORING
+================================================================================
+
+In Admin app window:
+
+1. Click "Refresh Sessions"
+
+2. You should see your session with:
+   - Code: ABC123
+   - Active Status
+   - Users: 2
+   - Documents: 1
+
+3. Click "View Documents"
+
+4. You should see:
+   - Active connections: 2
+   - List of connected users
+
+✅ ADMIN MONITORING WORKING!
+
+================================================================================
+STEP 13: TEST CONNECTION TRACKING
+================================================================================
+
+In User app window:
+
+1. Click "Exit"
+
+Wait a few seconds...
+
+In Support Person app:
+- Connection count updates to 0
+
+In Admin app:
+1. Click "Refresh Sessions"
+2. Users: 0
+
+✅ CONNECTION TRACKING WORKING!
+
+================================================================================
+COMPLETE SYSTEM TEST RESULTS
+================================================================================
+
+Your system is working if you see:
+
+✅ Terminal 1: Backend server running without errors
+✅ Terminal 2: All 8 API tests pass
+✅ Terminal 2: All 12 integration tests pass
+✅ Terminal 3: Support app opens and displays properly
+✅ Terminal 4: User app opens and displays properly
+✅ Support Person can create session
+✅ User can join with 6-digit code
+✅ Real-time sync works (changes appear instantly)
+✅ Document customization syncs to all users
+✅ Terminal 5: Admin app opens and displays properly
+✅ Admin can see live dashboard with user count
+✅ Connection tracking works
+✅ Changes are tracked in history
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+PROBLEM: "Port 5000 in use" or "Cannot bind to port 5000"
+
+SOLUTION:
+  1. Open Command Prompt as Administrator
+  2. Run: netstat -ano | findstr :5000
+  3. Note the PID (number at end)
+  4. Run: taskkill /PID <PID> /F
+  5. Try running backend again
+
+---
+
+PROBLEM: "ModuleNotFoundError: No module named 'flask'"
+
+SOLUTION:
+  1. Run: pip install -r requirements.txt
+  2. Wait for completion
+  3. Try running app again
+
+---
+
+PROBLEM: Backend won't start
+
+SOLUTION:
+  1. Make sure you're in the right directory:
+     cd C:\Users\dell\Desktop\my_project\backend
+  2. Try: python -u server.py (to see more errors)
+  3. Check if Python is installed: python --version
+  4. Try reinstalling dependencies
+
+---
+
+PROBLEM: App windows won't open
+
+SOLUTION:
+  1. Make sure all dependencies are installed
+  2. Check Python version: python --version (should be 3.10+)
+  3. Try running with error output:
+     python -u main.py
+  4. Check if Kivy is installed: pip list | findstr Kivy
+
+---
+
+PROBLEM: Database error
+
+SOLUTION:
+  1. Close all apps and backend
+  2. Delete the database: del C:\Users\dell\Desktop\my_project\backend\interview_platform.db
+  3. Restart backend (it will create new database)
+  4. Run tests again
+
+---
+
+PROBLEM: WebSocket connection takes long time or fails
+
+SOLUTION:
+  1. Make sure backend is still running (check Terminal 1)
+  2. Wait longer (sometimes takes 5 seconds first time)
+  3. Check firewall isn't blocking port 5000
+  4. Restart backend: Press Ctrl+C in Terminal 1, then python server.py again
+
+================================================================================
+WHAT'S HAPPENING BEHIND THE SCENES
+================================================================================
+
+When you join a session:
+
+1. User enters code ABC123 in User app
+2. User app sends code to backend server
+3. Backend verifies code exists in database
+4. Backend returns session ID and document ID
+5. User app connects via WebSocket
+6. Backend sends current document state
+7. User app displays document
+8. User can now edit and changes sync instantly
+
+Real-time sync flow:
+
+1. Support Person types text
+2. Text change sent to backend via WebSocket
+3. Backend records change in database
+4. Backend broadcasts to all users in session
+5. User app receives and displays change
+6. All happens in <50ms (you won't see delay)
+
+Admin monitoring:
+
+1. Admin clicks "Refresh Sessions"
+2. Admin app requests all sessions from backend
+3. Backend returns list with user counts
+4. Admin app displays dashboard
+5. Dashboard updates in real-time
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+After everything is working:
+
+1. UNDERSTAND THE SYSTEM:
+   Read: C:\Users\dell\Desktop\my_project\ARCHITECTURE.md
+   Learn how everything connects
+
+2. EXPLORE FEATURES:
+   Read: C:\Users\dell\Desktop\my_project\FEATURES.md
+   See what the platform can do
+
+3. DEPLOY TO PRODUCTION:
+   Read: C:\Users\dell\Desktop\my_project\DEPLOYMENT.md
+   Deploy to AWS/Cloud
+
+4. CUSTOMIZE FOR YOUR USE:
+   Edit the main.py files in each app
+   Add your branding
+   Add custom features
+
+================================================================================
+QUICK REFERENCE
+================================================================================
+
+Terminal 1 (KEEP RUNNING):
+  cd C:\Users\dell\Desktop\my_project\backend
+  python server.py
+
+Terminal 2 (Tests):
+  cd C:\Users\dell\Desktop\my_project\tests
+  python test_api.py
+  python integration_test.py
+
+Terminal 3 (Support App):
+  cd C:\Users\dell\Desktop\my_project\support_person_app
+  python main.py
+
+Terminal 4 (User App):
+  cd C:\Users\dell\Desktop\my_project\user_app
+  python main.py
+
+Terminal 5 (Admin App):
+  cd C:\Users\dell\Desktop\my_project\admin_app
+  python main.py
+
+================================================================================
+IMPORTANT NOTES
+================================================================================
+
+1. Terminal 1 (backend) MUST STAY RUNNING
+   - Don't close it while testing
+   - All apps need it to communicate
+
+2. Wait 2-3 seconds for WebSocket connections
+   - First connection might be slower
+   - Subsequent ones are faster
+
+3. Real-time sync should be instant
+   - If it's slow, check backend is still running
+   - If very slow, restart everything
+
+4. Database file is created automatically
+   - Located at: C:\Users\dell\Desktop\my_project\backend\interview_platform.db
+   - Contains all sessions, documents, and changes
+   - Deletes if you delete interview_platform.db
+
+5. Each 6-digit code is unique
+   - New session = new code
+   - Save the code to share with users
+
+================================================================================
+YOU'RE NOW READY TO TEST!
+================================================================================
+
+Start with Step 1 above and follow each step in order.
+
+If you get stuck, check the TROUBLESHOOTING section.
+
+For more details, see:
+- TESTING_GUIDE.md (detailed testing guide)
+- QUICK_REFERENCE.md (quick reference card)
+- README.md (complete overview)
+
+GOOD LUCK! 🚀
+
+================================================================================

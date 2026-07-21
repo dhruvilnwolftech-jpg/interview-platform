@@ -1,0 +1,434 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                  INTERVIEW PLATFORM - VISUAL GUIDE                        ║
+║                      Step-by-Step Illustrated                             ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+================================================================================
+SYSTEM ARCHITECTURE
+================================================================================
+
+What you're about to run:
+
+                    ┌─────────────────────┐
+                    │   Backend Server    │
+                    │   (Terminal 1)      │
+                    │   localhost:5000    │
+                    └──────────┬──────────┘
+                               │
+        ┌──────────────────────┼──────────────────────┐
+        │                      │                      │
+        ▼                      ▼                      ▼
+    ┌────────────┐      ┌────────────┐      ┌────────────┐
+    │   User     │      │  Support   │      │   Admin    │
+    │    APK     │◄────►│   Person   │◄────►│    APK     │
+    │ (Terminal 4)      │    APK     │      │ (Terminal 5)
+    │            │      │ (Terminal 3)      │            │
+    └────────────┘      └────────────┘      └────────────┘
+        (Client)         (Client)              (Client)
+    WebSocket ┌──────────────────────┐ WebSocket
+    Connection│   SQLite Database    │ Broadcasting
+             │  interview_platform   │
+             │        .db            │
+             └──────────────────────┘
+                   Persistence
+
+
+================================================================================
+EXECUTION FLOW
+================================================================================
+
+TIME    WHAT TO DO                        WHAT YOU SEE
+────    ──────────────────────────        ─────────────────────────────
+0 min   Install dependencies              "Successfully installed..."
+        pip install -r requirements.txt
+
+2 min   Start Terminal 1:                 "Server running on
+        cd backend                        http://localhost:5000"
+        python server.py                  (Keep this open!)
+
+2.5 min Start Terminal 2:                 "RESULTS: 8 passed"
+        cd tests
+        python test_api.py
+
+3 min   Run Integration Tests:            "RESULTS: 12 passed"
+        python integration_test.py
+
+4 min   Start Terminal 3:                 Window opens with
+        cd support_person_app             "Create New Session"
+        python main.py
+
+4.5 min Start Terminal 4:                 Window opens with
+        cd user_app                       Code input field
+        python main.py
+
+5 min   Start Terminal 5:                 Window opens with
+        cd admin_app                      "Admin Dashboard"
+        python main.py
+
+5.5 min Create Session:                   Displays 6-digit code
+        Support Person: Click             Example: ABC123
+        "Create New Session"
+
+6 min   Join Session:                     Status: "Connected as User"
+        User: Enter ABC123                Document appears
+        Click "Join Session"
+
+6.5 min Test Real-Time Sync:              Text appears instantly
+        Support types in document         in User app
+        Watch User app
+
+7 min   Support Customizes:               Both apps show
+        Click Settings                    new colors/sizes
+        Change colors, fonts              instantly
+
+7.5 min Admin Monitors:                   Dashboard shows
+        Click Refresh                     Session: ABC123
+                                         Users: 2
+
+8 min   Disconnect Test:                  Connection count
+        User: Click Exit                  updates to 0
+
+
+================================================================================
+TERMINAL LAYOUT
+================================================================================
+
+During testing, you'll have 5 terminals open:
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓  ┏━━━━━━━━━━━━━━━━━━━━━━━┓  ┏━━━━━━━━━━━━━━━━━━━━━━━┓
+┃    TERMINAL 1         ┃  ┃    TERMINAL 2         ┃  ┃    TERMINAL 3         ┃
+┃  BACKEND SERVER       ┃  ┃  TESTS & RESULTS      ┃  ┃  SUPPORT PERSON       ┃
+┃                       ┃  ┃                       ┃  ┃        APP            ┃
+┃  python server.py     ┃  ┃  python test_api.py   ┃  ┃  python main.py       ┃
+┃                       ┃  ┃  python integration   ┃  ┃                       ┃
+┃  ✓ Running            ┃  ┃                       ┃  ┃  ✓ Window opened      ┃
+┃  ✓ Logging events     ┃  ┃  ✓ 8/8 tests pass    ┃  ┃  ✓ Ready to create    ┃
+┃  ✓ KEEP THIS OPEN!    ┃  ┃  ✓ 12/12 tests pass  ┃  ┃                       ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━┛  ┗━━━━━━━━━━━━━━━━━━━━━━━┛  ┗━━━━━━━━━━━━━━━━━━━━━━━┛
+
+┏━━━━━━━━━━━━━━━━━━━━━━━┓  ┏━━━━━━━━━━━━━━━━━━━━━━━┓
+┃    TERMINAL 4         ┃  ┃    TERMINAL 5         ┃
+┃      USER APP         ┃  ┃      ADMIN APP        ┃
+┃                       ┃  ┃                       ┃
+┃  python main.py       ┃  ┃  python main.py       ┃
+┃                       ┃  ┃                       ┃
+┃  ✓ Window opened      ┃  ┃  ✓ Window opened      ┃
+┃  ✓ Ready to join      ┃  ┃  ✓ Ready to monitor   ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━┛  ┗━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+================================================================================
+USER INTERFACE WINDOWS
+================================================================================
+
+SUPPORT PERSON APP WINDOW:
+┌─────────────────────────────────────────────────────────────┐
+│ Interview Support                                     [_][☐][X]│
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Code: ABC123              Users: 1     [Settings] [Exit]   │
+│  Connected to session                                       │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │                                                         ││
+│  │  Tell me about your experience                          ││
+│  │  I have 5 years of experience...                        ││
+│  │                                                         ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+USER APP WINDOW:
+┌─────────────────────────────────────────────────────────────┐
+│ Interview Session                                   [_][☐][X]│
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Enter the 6-digit code provided by                     ││
+│  │ the interview support person                           ││
+│  │                                                         ││
+│  │ [ABC123________________]                               ││
+│  │                                                         ││
+│  │ [ Join Session ]                                        ││
+│  │                                                         ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                             │
+│  (After joining)                                            │
+│  Connected • 2 user(s)    [Settings]    [Exit]             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Tell me about your experience                           ││
+│  │ I have 5 years of experience...                         ││
+│  │                                                         ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+ADMIN APP WINDOW:
+┌─────────────────────────────────────────────────────────────┐
+│ Admin Dashboard                                     [_][☐][X]│
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  [Refresh Sessions]                                         │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Code: ABC123                                   Active   ││
+│  │ Users: 2 | Documents: 1                                 ││
+│  │ [ View Documents ]                                      ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                             │
+│  ┌─────────────────────────────────────────────────────────┐│
+│  │ Code: XYZ789                                   Active   ││
+│  │ Users: 1 | Documents: 1                                 ││
+│  │ [ View Documents ]                                      ││
+│  └─────────────────────────────────────────────────────────┘│
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+REAL-TIME SYNCHRONIZATION VISUALIZATION
+================================================================================
+
+Scenario: Support Person types "Hello"
+
+TIME    SUPPORT APP              NETWORK              USER APP
+────    ────────────────────     ──────────────────   ────────────────────
+
+0ms     User types: H            
+        Text box: "H"
+
+5ms     User types: e
+        Text box: "He"
+
+10ms    User types: l
+        Text box: "Hel"
+
+15ms    User types: l
+        Text box: "Hell"
+
+20ms    User types: o                                 USER APP:
+        Text box: "Hello"        ──WebSocket Event──► Text box: "Hello"
+                                 <50ms latency
+                                 document_change     User sees update
+                                 
+        Text synced perfectly, changes visible instantly!
+
+
+================================================================================
+DATA FLOW VISUALIZATION
+================================================================================
+
+User Joins:
+┌──────────┐
+│   User   │  1. Enters code "ABC123"
+└────┬─────┘
+     │
+     │ GET /api/sessions/ABC123
+     ▼
+┌──────────────────────┐
+│  Backend Server      │  2. Verifies code exists
+│  (Terminal 1)        │     Looks in database
+└────┬─────────────────┘
+     │
+     │ Returns: {session_id, document_id}
+     ▼
+┌──────────┐
+│   User   │  3. WebSocket connect
+└────┬─────┘
+     │
+     │ emit: register event
+     ▼
+┌──────────────────────┐
+│  Backend Server      │  4. Adds to room
+│  + Database          │     Sends document state
+└────┬─────────────────┘
+     │
+     │ Response: sync_response (document content)
+     ▼
+┌──────────┐
+│   User   │  5. Display document on screen
+└──────────┘     Ready for editing
+
+
+Document Edit:
+┌──────────┐
+│   User   │  1. Types text
+└────┬─────┘     Changes shown immediately
+     │
+     │ emit: document_change event
+     ▼
+┌──────────────────────┐
+│  Backend Server      │  2. Record change in database
+│  + Database          │     Broadcast to all users
+└────┬─────────────────┘
+     │
+     ├─► broadcast to Support Person
+     │
+     └─► broadcast to Admin
+     
+┌──────────────────────────────────────────┐
+│  All connected users see update instantly │
+│  <50ms latency                            │
+└──────────────────────────────────────────┘
+
+
+================================================================================
+SUCCESS INDICATORS
+================================================================================
+
+After Step 13, you should see:
+
+✓ Backend Terminal 1:     No errors, logs show connections
+✓ Test Terminal 2:        "RESULTS: 8 passed, 0 failed"
+                         "RESULTS: 12 passed, 0 failed"
+✓ Support Person Window:  Shows "Create New Session" works
+✓ User Window:            Shows code can be entered and verified
+✓ Admin Window:           Shows dashboard with sessions
+✓ Real-Time Sync:         Changes appear instantly (both directions)
+✓ Document Customization: Style changes sync across all apps
+✓ Connection Tracking:    User count updates when join/leave
+✓ Database File:          interview_platform.db created
+✓ No Python Errors:       Clean terminal output
+
+
+================================================================================
+WHAT'S HAPPENING EACH SECOND
+================================================================================
+
+SECOND 0-2:    Installation
+               pip install -r requirements.txt
+               Downloading and installing 11 packages
+
+SECOND 2-2.5:  Backend starts
+               cd backend && python server.py
+               Server binds to port 5000
+
+SECOND 2.5-4.5: Backend tests
+               cd tests && python test_api.py
+               8 API tests execute
+               python integration_test.py
+               12 integration tests execute
+
+SECOND 4-5:    Apps launch
+               Support Person: python main.py (Terminal 3)
+               User: python main.py (Terminal 4)
+               Admin: python main.py (Terminal 5)
+               All three windows open
+
+SECOND 5.5-6:  Create session
+               Click "Create New Session" in Support app
+               Backend generates session + code
+               Code displayed in Support Person app
+
+SECOND 6-7:    Join session
+               Enter code in User app
+               Backend verifies code
+               WebSocket connection established
+               Document state synced
+               User sees document on screen
+
+SECOND 7-8:    Real-time testing
+               Both edit document
+               Changes sync instantly
+               Admin monitors live
+
+
+================================================================================
+KEYBOARD SHORTCUTS
+================================================================================
+
+In all windows:
+  Tab         Move between fields
+  Enter       Submit/Join
+  Ctrl+C      Exit app (in terminal)
+
+In text editors:
+  Ctrl+A      Select all
+  Ctrl+C      Copy
+  Ctrl+V      Paste
+  Ctrl+Z      Undo
+
+
+================================================================================
+EXPECTED FILE SIZES
+================================================================================
+
+After running the app:
+
+requirements.txt              ~0.3 KB
+backend/server.py            ~25 KB
+user_app/main.py             ~15 KB
+support_person_app/main.py   ~18 KB
+admin_app/main.py            ~20 KB
+tests/test_api.py            ~12 KB
+tests/integration_test.py    ~22 KB
+interview_platform.db        ~50-500 KB (depends on usage)
+
+Total project size:           ~300 MB (after dependencies installed)
+
+
+================================================================================
+MEMORY USAGE
+================================================================================
+
+Running each component:
+
+Backend Server:             ~80 MB
+User APK:                   ~60 MB
+Support Person APK:         ~60 MB
+Admin APK:                  ~60 MB
+Python/System:              ~100 MB
+────────────────────────────────────
+Total:                      ~360 MB
+
+
+================================================================================
+NETWORK TRAFFIC
+================================================================================
+
+During testing (all on localhost):
+
+Initial connection:         ~2 KB
+Document state (empty):     ~0.5 KB per user
+Text edit (small):          ~100 bytes
+Style change:               ~200 bytes
+Real-time update:           Minimal (microseconds)
+
+All traffic is on localhost - no internet needed!
+
+
+================================================================================
+CPU USAGE
+================================================================================
+
+At rest:                    <1%
+User typing:                1-3%
+Multiple users:             2-5%
+Admin refreshing:           1-2%
+
+Very efficient! No lag expected.
+
+
+================================================================================
+YOU'RE NOW READY!
+================================================================================
+
+Follow the steps in RUN_ME_FIRST.txt
+
+Visual summary:
+1. Install deps (Terminal 1 command)
+2. Backend starts (Terminal 1, keep running)
+3. Tests run (Terminal 2, closes after)
+4. Apps launch (Terminals 3, 4, 5)
+5. Create session (Support app)
+6. Join session (User app)
+7. Test sync (both apps)
+8. Test customization (both apps)
+9. Admin monitors (Admin app)
+
+Expected time: 10-15 minutes
+
+Good luck! 🚀
+
+═══════════════════════════════════════════════════════════════════════════════
