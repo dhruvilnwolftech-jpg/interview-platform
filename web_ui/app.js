@@ -185,6 +185,7 @@ let isSyncing = false;
 let lastSaveTime = null;
 let lastSyncedContent = '';
 let lastContentFromServer = '';
+let lastSaveAttemptTime = 0;
 
 function viewDocumentEditor(role) {
     if (role === 'support') {
@@ -259,19 +260,24 @@ function startAutoSave() {
 
     const textarea = document.getElementById('document-text');
 
-    // Auto-save every 500ms
+    // Auto-save every 300ms (faster)
     autoSaveInterval = setInterval(() => {
         autoSaveDocument();
-    }, 500);
+    }, 300);
 
     // Update char count on input
     textarea.addEventListener('input', updateCharCount);
 
-    // Save immediately on paste
+    // Save immediately on paste AND force sync
     textarea.addEventListener('paste', () => {
         setTimeout(() => {
+            console.log('[PASTE] Detected - saving and syncing immediately');
             autoSaveDocument();
-        }, 50);
+            // Force immediate sync after paste
+            setTimeout(() => {
+                syncDocumentContent();
+            }, 100);
+        }, 20);
     });
 }
 
@@ -281,10 +287,10 @@ function startRealtimeSync() {
         clearInterval(syncInterval);
     }
 
-    // Sync every 300ms for real-time updates
+    // Sync every 200ms for faster real-time updates (down from 300ms)
     syncInterval = setInterval(() => {
         syncDocumentContent();
-    }, 300);
+    }, 200);
 }
 
 function updateCharCount() {
@@ -308,14 +314,16 @@ function autoSaveDocument() {
 
     const textarea = document.getElementById('document-text');
     const content = textarea.value;
+    const now = Date.now();
 
-    // Only save if content changed
-    if (content === lastSyncedContent) {
+    // Only save if content changed AND enough time has passed (debounce)
+    if (content === lastSyncedContent && (now - lastSaveAttemptTime) < 100) {
         return;
     }
 
     isAutoSaving = true;
     lastSyncedContent = content;
+    lastSaveAttemptTime = now;
 
     const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
     const options = {
@@ -362,7 +370,7 @@ function syncDocumentContent() {
 
             // If server content changed, update textarea
             if (serverContent !== lastContentFromServer) {
-                console.log('[SYNC] Content changed on server');
+                console.log('[SYNC] Server content changed from', lastContentFromServer.length, 'to', serverContent.length, 'chars');
                 lastContentFromServer = serverContent;
 
                 const textarea = document.getElementById('document-text');
@@ -370,6 +378,7 @@ function syncDocumentContent() {
 
                 // Only update if local content hasn't changed
                 if (textarea.value === lastSyncedContent) {
+                    console.log('[SYNC] Updating textarea with server content');
                     textarea.value = serverContent;
                     lastSyncedContent = serverContent;
                     updateCharCount();
@@ -378,8 +387,9 @@ function syncDocumentContent() {
                     textarea.selectionStart = Math.min(currentCursorPos, serverContent.length);
                     textarea.selectionEnd = textarea.selectionStart;
 
-                    console.log('[SYNC] Updated textarea');
                     showSaveStatus('✓ Synced', '#28a745');
+                } else {
+                    console.log('[SYNC] Local content changed, not updating (conflict)');
                 }
             }
         })
