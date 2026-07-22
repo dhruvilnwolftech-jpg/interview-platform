@@ -1,11 +1,11 @@
 """
-Interview Document Sharing Platform - Backend Server
-Real-time synchronization using WebSocket (Socket.IO)
+Interview Platform Backend - Flask API
+Simple, robust REST API for interview management
 """
 
 from flask import Flask, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import uuid
 import os
@@ -15,26 +15,22 @@ load_dotenv()
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///interview_platform.db')
+
+# Configuration
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'interview-platform-secret-key')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/interview_platform.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JSON_SORT_KEYS'] = False
 
-# Enable CORS for all routes
-CORS(app, 
-     resources={r"/api/*": {"origins": "*"}},
-     methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-     allow_headers=["Content-Type"])
+# Enable CORS
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-# Initialize extensions
+# Initialize database
 db = SQLAlchemy(app)
-
-# Placeholder for socketio (disabled for deployment)
-socketio = None
 
 # ==================== DATABASE MODELS ====================
 
 class InterviewSession(db.Model):
-    """Stores interview session information"""
     __tablename__ = 'interview_sessions'
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -48,258 +44,199 @@ class InterviewSession(db.Model):
 
 
 class Document(db.Model):
-    """Stores document content and metadata"""
     __tablename__ = 'documents'
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = db.Column(db.String(36), db.ForeignKey('interview_sessions.id'), nullable=False)
     content = db.Column(db.Text, default='')
-    bg_color = db.Column(db.String(7), default='#FFFFFF')
-    font_color = db.Column(db.String(7), default='#000000')
-    font_size = db.Column(db.Integer, default=14)
-    opacity = db.Column(db.Float, default=1.0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    changes = db.relationship('DocumentChange', backref='document', lazy=True, cascade='all, delete-orphan')
-
-
-class DocumentChange(db.Model):
-    """Tracks all changes to documents for history"""
-    __tablename__ = 'document_changes'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    document_id = db.Column(db.String(36), db.ForeignKey('documents.id'), nullable=False)
-    change_type = db.Column(db.String(50), nullable=False)  # 'text_edit', 'style_change', 'image_insert'
-    old_value = db.Column(db.Text)
-    new_value = db.Column(db.Text)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.String(36), nullable=False)
 
 
 class UserConnection(db.Model):
-    """Tracks user connections to documents"""
     __tablename__ = 'user_connections'
     
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = db.Column(db.String(36), db.ForeignKey('interview_sessions.id'), nullable=False)
     user_id = db.Column(db.String(36), nullable=False)
     connected_at = db.Column(db.DateTime, default=datetime.utcnow)
-    disconnected_at = db.Column(db.DateTime)
-    user_type = db.Column(db.String(20), nullable=False)  # 'user', 'support_person', 'admin'
+    user_type = db.Column(db.String(20), nullable=False, default='user')
 
 
-# ==================== SOCKET.IO EVENTS (DISABLED FOR DEPLOYMENT) ====================
-# WebSocket events are disabled in this deployment version
-# For real-time features, add flask-socketio to requirements and uncomment these handlers
+# ==================== ERROR HANDLERS ====================
+
+@app.errorhandler(400)
+def bad_request(error):
+    return jsonify({'error': 'Bad request'}), 400
+
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
 
 
-# ==================== CORS PREFLIGHT HANDLER ====================
-
-@app.before_request
-def handle_preflight():
-    """Handle CORS preflight requests"""
-    if request.method == "OPTIONS":
-        response = jsonify({'status': 'ok'})
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
-        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
-        return response, 200
-
-
-# ==================== ROOT ENDPOINT ====================
+# ==================== API ENDPOINTS ====================
 
 @app.route('/', methods=['GET'])
-def welcome():
-    """Welcome endpoint"""
+def root():
+    """Root endpoint"""
     return jsonify({
-        'status': 'Welcome to Interview Platform Backend',
+        'status': 'Interview Platform API',
         'version': '1.0.0',
         'endpoints': {
             'health': '/api/health',
-            'create_session': 'POST /api/sessions',
-            'verify_code': 'GET /api/sessions/<code>',
-            'get_connections': 'GET /api/sessions/<id>/connections',
-            'get_history': 'GET /api/documents/<id>/history',
+            'sessions_create': 'POST /api/sessions',
+            'sessions_verify': 'GET /api/sessions/<code>',
             'admin_sessions': 'GET /api/admin/sessions',
             'admin_documents': 'GET /api/admin/documents/<id>'
         }
     })
 
-# ==================== REST API ENDPOINTS ====================
 
 @app.route('/api/health', methods=['GET'])
 def health():
-    """Health check endpoint"""
-    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()})
+    """Health check"""
+    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()}), 200
 
 
-@app.route('/api/sessions', methods=['POST'])
+@app.route('/api/sessions', methods=['POST', 'OPTIONS'])
 def create_session():
-    """Create new interview session (Support Person)"""
-    data = request.json
+    """Create new interview session"""
+    if request.method == 'OPTIONS':
+        return '', 204
     
-    # Generate 6-digit code
-    code = str(uuid.uuid4())[:6].upper()
-    support_person_id = data.get('support_person_id')
+    try:
+        data = request.get_json() or {}
+        support_person_id = data.get('support_person_id', 'unknown')
+        
+        # Generate 6-digit code
+        code = str(uuid.uuid4())[:6].upper()
+        
+        # Create session
+        session = InterviewSession(
+            code=code,
+            support_person_id=support_person_id
+        )
+        db.session.add(session)
+        db.session.flush()
+        
+        # Create document
+        document = Document(session_id=session.id)
+        db.session.add(document)
+        db.session.commit()
+        
+        return jsonify({
+            'session_id': session.id,
+            'code': code,
+            'document_id': document.id,
+            'created_at': session.created_at.isoformat()
+        }), 201
     
-    session = InterviewSession(
-        code=code,
-        support_person_id=support_person_id
-    )
-    db.session.add(session)
-    db.session.commit()
-    
-    # Create initial document
-    document = Document(session_id=session.id)
-    db.session.add(document)
-    db.session.commit()
-    
-    return jsonify({
-        'session_id': session.id,
-        'code': code,
-        'document_id': document.id,
-        'created_at': session.created_at.isoformat()
-    }), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/sessions/<code>', methods=['GET'])
+@app.route('/api/sessions/<code>', methods=['GET', 'OPTIONS'])
 def verify_session(code):
-    """Verify session code and get document details (User)"""
-    session = InterviewSession.query.filter_by(code=code).first()
+    """Verify session code"""
+    if request.method == 'OPTIONS':
+        return '', 204
     
-    if not session:
-        return jsonify({'error': 'Invalid code'}), 404
+    try:
+        session = InterviewSession.query.filter_by(code=code.upper()).first()
+        
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        if not session.is_active:
+            return jsonify({'error': 'Session inactive'}), 400
+        
+        document = session.documents[0] if session.documents else None
+        
+        if not document:
+            return jsonify({'error': 'No document'}), 404
+        
+        return jsonify({
+            'session_id': session.id,
+            'code': session.code,
+            'document_id': document.id,
+            'support_person_id': session.support_person_id,
+            'created_at': session.created_at.isoformat()
+        }), 200
     
-    if not session.is_active:
-        return jsonify({'error': 'Session inactive'}), 400
-    
-    document = session.documents[0] if session.documents else None
-    
-    if not document:
-        return jsonify({'error': 'No document found'}), 404
-    
-    return jsonify({
-        'session_id': session.id,
-        'document_id': document.id,
-        'support_person_id': session.support_person_id,
-        'created_at': session.created_at.isoformat()
-    }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/documents/<document_id>/history', methods=['GET'])
-def get_document_history(document_id):
-    """Get document change history"""
-    changes = DocumentChange.query.filter_by(document_id=document_id).all()
-    
-    return jsonify({
-        'document_id': document_id,
-        'changes': [
-            {
-                'id': change.id,
-                'change_type': change.change_type,
-                'old_value': change.old_value,
-                'new_value': change.new_value,
-                'timestamp': change.timestamp.isoformat(),
-                'user_id': change.user_id
-            }
-            for change in changes
-        ]
-    }), 200
-
-
-@app.route('/api/sessions/<session_id>/connections', methods=['GET'])
-def get_session_connections(session_id):
-    """Get active connections count for a session"""
-    active_count = UserConnection.query.filter_by(
-        session_id=session_id,
-        disconnected_at=None
-    ).count()
-    
-    connections = UserConnection.query.filter_by(session_id=session_id).all()
-    
-    return jsonify({
-        'session_id': session_id,
-        'active_count': active_count,
-        'all_connections': [
-            {
-                'user_id': conn.user_id,
-                'user_type': conn.user_type,
-                'connected_at': conn.connected_at.isoformat(),
-                'disconnected_at': conn.disconnected_at.isoformat() if conn.disconnected_at else None
-            }
-            for conn in connections
-        ]
-    }), 200
-
-
-@app.route('/api/admin/sessions', methods=['GET'])
+@app.route('/api/admin/sessions', methods=['GET', 'OPTIONS'])
 def get_all_sessions():
-    """Get all sessions with documents (Admin)"""
-    sessions = InterviewSession.query.all()
+    """Get all sessions"""
+    if request.method == 'OPTIONS':
+        return '', 204
     
-    return jsonify({
-        'sessions': [
-            {
-                'id': session.id,
-                'code': session.code,
-                'support_person_id': session.support_person_id,
-                'created_at': session.created_at.isoformat(),
-                'is_active': session.is_active,
-                'document_count': len(session.documents),
-                'connection_count': len([c for c in session.connections if not c.disconnected_at])
-            }
-            for session in sessions
-        ]
-    }), 200
+    try:
+        sessions = InterviewSession.query.all()
+        return jsonify({
+            'sessions': [
+                {
+                    'id': s.id,
+                    'code': s.code,
+                    'support_person_id': s.support_person_id,
+                    'created_at': s.created_at.isoformat(),
+                    'is_active': s.is_active,
+                    'document_count': len(s.documents),
+                    'connection_count': len([c for c in s.connections if c.user_type != 'disconnected'])
+                }
+                for s in sessions
+            ]
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/documents/<document_id>', methods=['GET'])
-def get_admin_document(document_id):
-    """Get full document details for admin"""
-    document = Document.query.get(document_id)
+@app.route('/api/admin/documents/<doc_id>', methods=['GET', 'OPTIONS'])
+def get_document(doc_id):
+    """Get document details"""
+    if request.method == 'OPTIONS':
+        return '', 204
     
-    if not document:
-        return jsonify({'error': 'Document not found'}), 404
-    
-    changes = DocumentChange.query.filter_by(document_id=document_id).all()
-    
-    return jsonify({
-        'id': document.id,
-        'session_id': document.session_id,
-        'content': document.content,
-        'bg_color': document.bg_color,
-        'font_color': document.font_color,
-        'font_size': document.font_size,
-        'opacity': document.opacity,
-        'created_at': document.created_at.isoformat(),
-        'updated_at': document.updated_at.isoformat(),
-        'change_history': [
-            {
-                'id': change.id,
-                'change_type': change.change_type,
-                'timestamp': change.timestamp.isoformat(),
-                'user_id': change.user_id
-            }
-            for change in changes
-        ]
-    }), 200
+    try:
+        document = Document.query.get(doc_id)
+        
+        if not document:
+            return jsonify({'error': 'Document not found'}), 404
+        
+        return jsonify({
+            'id': document.id,
+            'session_id': document.session_id,
+            'content': document.content,
+            'created_at': document.created_at.isoformat(),
+            'updated_at': document.updated_at.isoformat()
+        }), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
-# ==================== DATABASE INITIALIZATION ====================
+# ==================== INITIALIZATION ====================
 
-@app.shell_context_processor
-def make_shell_context():
-    return {'db': db, 'InterviewSession': InterviewSession, 'Document': Document}
+def init_db():
+    """Initialize database"""
+    try:
+        with app.app_context():
+            db.create_all()
+            print("✓ Database initialized")
+    except Exception as e:
+        print(f"✗ Database error: {e}")
 
-
-# ==================== APP STARTUP ====================
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    
-    print("Starting Interview Platform Backend Server...")
-    print("Server running on http://localhost:5000")
-    
+    init_db()
+    print("Starting Interview Platform Backend...")
+    print("Server: http://0.0.0.0:5000")
+    print("API: http://localhost:5000/api/health")
     app.run(host='0.0.0.0', port=5000, debug=True)
