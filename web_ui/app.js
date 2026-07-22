@@ -257,40 +257,47 @@ function startAutoSave() {
     if (autoSaveInterval) {
         clearInterval(autoSaveInterval);
     }
+    if (syncInterval) {
+        clearInterval(syncInterval);
+    }
 
     const textarea = document.getElementById('document-text');
 
-    // Auto-save every 300ms (faster)
+    // Auto-save every 500ms (reduced frequency to prevent blinking)
     autoSaveInterval = setInterval(() => {
         autoSaveDocument();
-    }, 300);
+    }, 500);
 
-    // Update char count on input
-    textarea.addEventListener('input', updateCharCount);
+    // Sync every 800ms but ONLY if user is not typing (more conservative)
+    let lastTypedTime = Date.now();
+    textarea.addEventListener('input', () => {
+        lastTypedTime = Date.now();
+        updateCharCount();
+    });
 
-    // Save immediately on paste AND force sync
+    syncInterval = setInterval(() => {
+        // Only sync if user hasn't typed in last 300ms
+        if (Date.now() - lastTypedTime > 300) {
+            syncDocumentContent();
+        }
+    }, 800);
+
+    // Save immediately on paste AND force sync after pause
     textarea.addEventListener('paste', () => {
         setTimeout(() => {
-            console.log('[PASTE] Detected - saving and syncing immediately');
+            console.log('[PASTE] Detected - saving immediately');
             autoSaveDocument();
-            // Force immediate sync after paste
+            // Force sync after 150ms (after paste settles)
             setTimeout(() => {
                 syncDocumentContent();
-            }, 100);
+            }, 150);
         }, 20);
     });
 }
 
 function startRealtimeSync() {
-    // Clear existing interval
-    if (syncInterval) {
-        clearInterval(syncInterval);
-    }
-
-    // Sync every 200ms for faster real-time updates (down from 300ms)
-    syncInterval = setInterval(() => {
-        syncDocumentContent();
-    }, 200);
+    // Sync is now handled in startAutoSave() with smart typing detection
+    // This function is kept for compatibility but syncing is more intelligent now
 }
 
 function updateCharCount() {
@@ -316,13 +323,18 @@ function autoSaveDocument() {
     const content = textarea.value;
     const now = Date.now();
 
-    // Only save if content changed AND enough time has passed (debounce)
-    if (content === lastSyncedContent && (now - lastSaveAttemptTime) < 100) {
+    // Only save if content actually changed
+    if (content === lastSyncedContent) {
+        return;
+    }
+
+    // Debounce: don't save too frequently
+    if ((now - lastSaveAttemptTime) < 200) {
         return;
     }
 
     isAutoSaving = true;
-    lastSyncedContent = content;
+    lastSyncedContent = content; // Update BEFORE sending to prevent overwrite
     lastSaveAttemptTime = now;
 
     const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
@@ -342,12 +354,12 @@ function autoSaveDocument() {
         .then(data => {
             console.log('[AUTO-SAVE] Success');
             lastSaveTime = new Date();
-            showSaveStatus('✓ Saved', '#28a745');
+            showSaveStatus('✓ Saved', '#10b981');
             updateSaveTime();
         })
         .catch(err => {
             console.error('[AUTO-SAVE] Error:', err);
-            showSaveStatus('⚠ Error', '#dc3545');
+            showSaveStatus('⚠ Error', '#ef4444');
         })
         .finally(() => {
             isAutoSaving = false;
@@ -370,32 +382,29 @@ function syncDocumentContent() {
             const textarea = document.getElementById('document-text');
             const localContent = textarea.value;
 
-            // Only sync if server content is different from last known state
-            if (serverContent !== lastContentFromServer) {
-                console.log('[SYNC] Server changed from', lastContentFromServer.length, 'to', serverContent.length, 'chars');
+            // CRITICAL FIX: Only sync if no changes on this device
+            // If server content is new AND local content is exactly what we last saved
+            if (serverContent !== lastContentFromServer && localContent === lastSyncedContent) {
+                console.log('[SYNC] Updating from server: ', lastContentFromServer.length, '→', serverContent.length);
                 lastContentFromServer = serverContent;
 
-                // CRITICAL: Only update if user hasn't edited since last save
-                if (localContent === lastSyncedContent) {
-                    // Safe to update - user hasn't made local changes
-                    console.log('[SYNC] User idle - updating with server content');
-                    const currentCursorPos = textarea.selectionStart;
+                // Save cursor position
+                const cursorPos = textarea.selectionStart;
 
-                    textarea.value = serverContent;
-                    lastSyncedContent = serverContent;
-                    updateCharCount();
+                // Update content
+                textarea.value = serverContent;
 
-                    // Restore cursor position
-                    textarea.selectionStart = Math.min(currentCursorPos, serverContent.length);
-                    textarea.selectionEnd = textarea.selectionStart;
+                // Restore cursor (but limit to new content length)
+                const newCursorPos = Math.min(cursorPos, serverContent.length);
+                textarea.selectionStart = newCursorPos;
+                textarea.selectionEnd = newCursorPos;
 
-                    showSaveStatus('✓ Synced', '#28a745');
-                } else {
-                    // User is actively editing - DON'T overwrite
-                    console.log('[SYNC] User editing - NOT overwriting (', localContent.length, 'vs', lastSyncedContent.length, ')');
-                    // Update our knowledge of server state but don't change textarea
-                    lastContentFromServer = serverContent;
-                }
+                updateCharCount();
+                showSaveStatus('✓ Synced', '#10b981');
+            } else if (serverContent !== lastContentFromServer) {
+                // Server changed but we're editing - just update our knowledge
+                console.log('[SYNC] Server changed but user editing - NOT updating');
+                lastContentFromServer = serverContent;
             }
         })
         .catch(err => {
