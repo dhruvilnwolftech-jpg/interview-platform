@@ -367,18 +367,20 @@ function syncDocumentContent() {
         })
         .then(data => {
             const serverContent = data.content || '';
+            const textarea = document.getElementById('document-text');
+            const localContent = textarea.value;
 
-            // If server content changed, update textarea
+            // Only sync if server content is different from last known state
             if (serverContent !== lastContentFromServer) {
-                console.log('[SYNC] Server content changed from', lastContentFromServer.length, 'to', serverContent.length, 'chars');
+                console.log('[SYNC] Server changed from', lastContentFromServer.length, 'to', serverContent.length, 'chars');
                 lastContentFromServer = serverContent;
 
-                const textarea = document.getElementById('document-text');
-                const currentCursorPos = textarea.selectionStart;
+                // CRITICAL: Only update if user hasn't edited since last save
+                if (localContent === lastSyncedContent) {
+                    // Safe to update - user hasn't made local changes
+                    console.log('[SYNC] User idle - updating with server content');
+                    const currentCursorPos = textarea.selectionStart;
 
-                // Only update if local content hasn't changed
-                if (textarea.value === lastSyncedContent) {
-                    console.log('[SYNC] Updating textarea with server content');
                     textarea.value = serverContent;
                     lastSyncedContent = serverContent;
                     updateCharCount();
@@ -389,7 +391,10 @@ function syncDocumentContent() {
 
                     showSaveStatus('✓ Synced', '#28a745');
                 } else {
-                    console.log('[SYNC] Local content changed, not updating (conflict)');
+                    // User is actively editing - DON'T overwrite
+                    console.log('[SYNC] User editing - NOT overwriting (', localContent.length, 'vs', lastSyncedContent.length, ')');
+                    // Update our knowledge of server state but don't change textarea
+                    lastContentFromServer = serverContent;
                 }
             }
         })
