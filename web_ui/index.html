@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Platform</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Navigation -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <span class="logo-icon">🎙️</span>
+                    <span>Interview Platform</span>
+                </div>
+                <div class="nav-menu">
+                    <button class="nav-btn active" onclick="switchRole('user')">Candidate</button>
+                    <button class="nav-btn" onclick="switchRole('support')">Support Person</button>
+                    <button class="nav-btn" onclick="switchRole('admin')">Admin</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="container">
+            <!-- Candidate View -->
+            <div id="user-view" class="view active">
+                <div class="view-header">
+                    <h1>Join Interview Session</h1>
+                    <p>Enter your session code to connect</p>
+                </div>
+
+                <div class="card">
+                    <div class="form-group">
+                        <label for="sessionCode">Session Code</label>
+                        <input type="text" id="sessionCode" placeholder="e.g., ABC123" maxlength="6" class="input-field">
+                    </div>
+                    <button onclick="joinSession()" class="btn btn-primary btn-lg">Join Session</button>
+                </div>
+
+                <div id="userSessionInfo" class="card hidden">
+                    <h2>Session Details</h2>
+                    <div class="session-details">
+                        <div class="detail-item">
+                            <span class="label">Session ID:</span>
+                            <span id="userSessionId" class="value">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Document ID:</span>
+                            <span id="userDocId" class="value">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Support Person ID:</span>
+                            <span id="userSupportId" class="value">-</span>
+                        </div>
+                    </div>
+                    <button onclick="viewDocument('user')" class="btn btn-success">View Document</button>
+                </div>
+            </div>
+
+            <!-- Support Person View -->
+            <div id="support-view" class="view">
+                <div class="view-header">
+                    <h1>Support Dashboard</h1>
+                    <p>Manage interview sessions</p>
+                </div>
+
+                <div class="card">
+                    <h2>Create New Session</h2>
+                    <div class="form-group">
+                        <label for="supportPersonId">Support Person ID</label>
+                        <input type="text" id="supportPersonId" placeholder="e.g., sp-001" class="input-field">
+                    </div>
+                    <button onclick="createSession()" class="btn btn-primary btn-lg">Create Session</button>
+                </div>
+
+                <div id="supportSessionInfo" class="card hidden">
+                    <h2>New Session Created</h2>
+                    <div class="session-details">
+                        <div class="detail-item">
+                            <span class="label">Session Code:</span>
+                            <span id="supportCode" class="value highlight">ABC123</span>
+                            <button onclick="copyToClipboard('supportCode')" class="btn-small">Copy</button>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Session ID:</span>
+                            <span id="supportSessionId" class="value">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Document ID:</span>
+                            <span id="supportDocId" class="value">-</span>
+                        </div>
+                    </div>
+                    <button onclick="resetSupport()" class="btn btn-secondary">Create Another Session</button>
+                </div>
+            </div>
+
+            <!-- Admin View -->
+            <div id="admin-view" class="view">
+                <div class="view-header">
+                    <h1>Admin Dashboard</h1>
+                    <p>Monitor all sessions and documents</p>
+                </div>
+
+                <button onclick="loadAllSessions()" class="btn btn-primary">Load Sessions</button>
+
+                <div id="adminStats" class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Total Sessions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Active Sessions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">Total Documents</div>
+                    </div>
+                </div>
+
+                <div id="adminSessionsList" class="card">
+                    <h2>All Sessions</h2>
+                    <div id="sessionsList" class="sessions-list">
+                        <p class="text-muted">Click "Load Sessions" to view</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Modal -->
+        <div id="documentModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Document Viewer</h2>
+                    <button onclick="closeModal()" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="documentViewer" class="document-viewer">
+                        <div class="document-content">
+                            <div id="docContent" class="text-content">Loading...</div>
+                        </div>
+                        <div class="document-stats">
+                            <div class="stat">
+                                <span class="label">Created:</span>
+                                <span id="docCreated">-</span>
+                            </div>
+                            <div class="stat">
+                                <span class="label">Last Updated:</span>
+                                <span id="docUpdated">-</span>
+                            </div>
+                            <div class="stat">
+                                <span class="label">Changes:</span>
+                                <span id="docChanges">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="loading-spinner hidden">
+            <div class="spinner"></div>
+        </div>
+
+        <!-- Toast Notification -->
+        <div id="toast" class="toast"></div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
