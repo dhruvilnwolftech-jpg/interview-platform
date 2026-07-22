@@ -18,8 +18,8 @@ git push -u origin main
 2. Sign up with GitHub
 3. Click "New Web Service"
 4. Select your repository
-5. Build: `pip install -r requirements_minimal.txt`
-6. Start: `gunicorn --worker-class eventlet -w 1 --bind 0.0.0.0:$PORT backend.server:app`
+5. Build: `pip install -r requirements_deploy.txt`
+6. Start: `gunicorn -w 1 --bind 0.0.0.0:$PORT backend.server:app`
 
 ### Step 3: Add Your Domain (15 min)
 1. In Render → Settings → Custom Domain → Add your domain
