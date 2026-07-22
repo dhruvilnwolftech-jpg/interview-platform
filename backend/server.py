@@ -4,7 +4,6 @@ Real-time synchronization using WebSocket (Socket.IO)
 """
 
 from flask import Flask, request, jsonify
-from flask_socketio import SocketIO, emit, join_room, leave_room, rooms
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import uuid
@@ -21,7 +20,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Initialize extensions
 db = SQLAlchemy(app)
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+# Placeholder for socketio (disabled for deployment)
+socketio = None
 
 # ==================== DATABASE MODELS ====================
 
