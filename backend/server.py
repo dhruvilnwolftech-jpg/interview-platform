@@ -18,12 +18,18 @@ app = Flask(__name__)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'interview-platform-secret-key')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////tmp/interview_platform.db'
+# Use backend directory for database
+db_path = os.path.join(os.path.dirname(__file__), 'interview_platform.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_SORT_KEYS'] = False
 
-# Enable CORS
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Enable CORS - BEFORE anything else
+CORS(app, 
+     resources={r"/api/*": {"origins": "*"}},
+     methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+     allow_headers=["Content-Type"],
+     supports_credentials=False)
 
 # Initialize database
 db = SQLAlchemy(app)
@@ -103,12 +109,9 @@ def health():
     return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()}), 200
 
 
-@app.route('/api/sessions', methods=['POST', 'OPTIONS'])
+@app.route('/api/sessions', methods=['POST'])
 def create_session():
     """Create new interview session"""
-    if request.method == 'OPTIONS':
-        return '', 204
-    
     try:
         data = request.get_json() or {}
         support_person_id = data.get('support_person_id', 'unknown')
@@ -141,12 +144,9 @@ def create_session():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/sessions/<code>', methods=['GET', 'OPTIONS'])
+@app.route('/api/sessions/<code>', methods=['GET'])
 def verify_session(code):
     """Verify session code"""
-    if request.method == 'OPTIONS':
-        return '', 204
-    
     try:
         session = InterviewSession.query.filter_by(code=code.upper()).first()
         
@@ -173,12 +173,9 @@ def verify_session(code):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/sessions', methods=['GET', 'OPTIONS'])
+@app.route('/api/admin/sessions', methods=['GET'])
 def get_all_sessions():
     """Get all sessions"""
-    if request.method == 'OPTIONS':
-        return '', 204
-    
     try:
         sessions = InterviewSession.query.all()
         return jsonify({
@@ -199,12 +196,9 @@ def get_all_sessions():
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/admin/documents/<doc_id>', methods=['GET', 'OPTIONS'])
+@app.route('/api/admin/documents/<doc_id>', methods=['GET'])
 def get_document(doc_id):
     """Get document details"""
-    if request.method == 'OPTIONS':
-        return '', 204
-    
     try:
         document = Document.query.get(doc_id)
         
