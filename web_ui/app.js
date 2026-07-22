@@ -174,12 +174,17 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('API Base:', API_BASE);
 });
 
-// Document Editor Functions
+// ============ DOCUMENT EDITOR FUNCTIONS ============
+
 let currentDocumentId = null;
 let currentDocumentRole = null;
 let autoSaveInterval = null;
+let syncInterval = null;
 let isAutoSaving = false;
+let isSyncing = false;
 let lastSaveTime = null;
+let lastSyncedContent = '';
+let lastContentFromServer = '';
 
 function viewDocumentEditor(role) {
     if (role === 'support') {
@@ -194,8 +199,9 @@ function viewDocumentEditor(role) {
     // Load document from backend
     loadDocument();
 
-    // Start auto-save interval
+    // Start auto-save and real-time sync
     startAutoSave();
+    startRealtimeSync();
 }
 
 function loadDocument() {
@@ -204,25 +210,25 @@ function loadDocument() {
     console.log('[LOAD] Document ID:', currentDocumentId);
 
     const url = `${API_BASE}/api/documents/${currentDocumentId}`;
-    console.log('[LOAD] URL:', url);
 
     fetch(url)
         .then(res => {
-            console.log('[LOAD] Response status:', res.status);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
         })
         .then(data => {
-            console.log('[LOAD] Received:', data);
+            console.log('[LOAD] Received content length:', (data.content || '').length);
             const textarea = document.getElementById('document-text');
             textarea.value = data.content || '';
+            lastSyncedContent = data.content || '';
+            lastContentFromServer = data.content || '';
             textarea.focus();
             updateCharCount();
-            showSaveStatus('Loaded ✓', '#28a745');
+            showSaveStatus('✓ Loaded', '#28a745');
         })
         .catch(err => {
             console.error('[LOAD] Error:', err);
-            showSaveStatus('Failed to load', '#dc3545');
+            showSaveStatus('✗ Failed', '#dc3545');
         });
 }
 
@@ -231,10 +237,14 @@ function closeDocumentEditor() {
     currentDocumentId = null;
     currentDocumentRole = null;
 
-    // Stop auto-save
+    // Stop intervals
     if (autoSaveInterval) {
         clearInterval(autoSaveInterval);
         autoSaveInterval = null;
+    }
+    if (syncInterval) {
+        clearInterval(syncInterval);
+        syncInterval = null;
     }
 
     // Final save
@@ -247,14 +257,34 @@ function startAutoSave() {
         clearInterval(autoSaveInterval);
     }
 
-    // Auto-save every 2 seconds
+    const textarea = document.getElementById('document-text');
+
+    // Auto-save every 500ms
     autoSaveInterval = setInterval(() => {
         autoSaveDocument();
-    }, 2000);
+    }, 500);
 
-    // Also save on textarea input changes
-    const textarea = document.getElementById('document-text');
+    // Update char count on input
     textarea.addEventListener('input', updateCharCount);
+
+    // Save immediately on paste
+    textarea.addEventListener('paste', () => {
+        setTimeout(() => {
+            autoSaveDocument();
+        }, 50);
+    });
+}
+
+function startRealtimeSync() {
+    // Clear existing interval
+    if (syncInterval) {
+        clearInterval(syncInterval);
+    }
+
+    // Sync every 300ms for real-time updates
+    syncInterval = setInterval(() => {
+        syncDocumentContent();
+    }, 300);
 }
 
 function updateCharCount() {
@@ -266,16 +296,26 @@ function updateCharCount() {
 function showSaveStatus(message, color = '#6c757d') {
     const statusEl = document.getElementById('save-status');
     const indicator = document.querySelector('.status-indicator');
-    statusEl.textContent = message;
-    statusEl.style.color = color;
-    indicator.style.background = color;
+    if (statusEl && indicator) {
+        statusEl.textContent = message;
+        statusEl.style.color = color;
+        indicator.style.background = color;
+    }
 }
 
 function autoSaveDocument() {
     if (!currentDocumentId || isAutoSaving) return;
 
-    const content = document.getElementById('document-text').value;
+    const textarea = document.getElementById('document-text');
+    const content = textarea.value;
+
+    // Only save if content changed
+    if (content === lastSyncedContent) {
+        return;
+    }
+
     isAutoSaving = true;
+    lastSyncedContent = content;
 
     const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
     const options = {
@@ -284,32 +324,70 @@ function autoSaveDocument() {
         body: JSON.stringify({ content: content })
     };
 
-    console.log('[AUTO-SAVE] Sending...');
+    console.log('[AUTO-SAVE] Saving', content.length, 'chars');
 
     fetch(url, options)
         .then(res => {
-            console.log('[AUTO-SAVE] Response status:', res.status);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
         })
         .then(data => {
             console.log('[AUTO-SAVE] Success');
             lastSaveTime = new Date();
-            showSaveStatus('Auto-saved ✓', '#28a745');
+            showSaveStatus('✓ Saved', '#28a745');
             updateSaveTime();
-
-            // Refresh other clients' views
-            if (currentDocumentRole === 'candidate') {
-                // Candidate can trigger refresh on support side
-                broadcastUpdate();
-            }
         })
         .catch(err => {
             console.error('[AUTO-SAVE] Error:', err);
-            showSaveStatus('Saving...', '#ffc107');
+            showSaveStatus('⚠ Error', '#dc3545');
         })
         .finally(() => {
             isAutoSaving = false;
+        });
+}
+
+function syncDocumentContent() {
+    if (!currentDocumentId || isSyncing) return;
+
+    isSyncing = true;
+    const url = `${API_BASE}/api/documents/${currentDocumentId}`;
+
+    fetch(url)
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            const serverContent = data.content || '';
+
+            // If server content changed, update textarea
+            if (serverContent !== lastContentFromServer) {
+                console.log('[SYNC] Content changed on server');
+                lastContentFromServer = serverContent;
+
+                const textarea = document.getElementById('document-text');
+                const currentCursorPos = textarea.selectionStart;
+
+                // Only update if local content hasn't changed
+                if (textarea.value === lastSyncedContent) {
+                    textarea.value = serverContent;
+                    lastSyncedContent = serverContent;
+                    updateCharCount();
+
+                    // Restore cursor position
+                    textarea.selectionStart = Math.min(currentCursorPos, serverContent.length);
+                    textarea.selectionEnd = textarea.selectionStart;
+
+                    console.log('[SYNC] Updated textarea');
+                    showSaveStatus('✓ Synced', '#28a745');
+                }
+            }
+        })
+        .catch(err => {
+            console.error('[SYNC] Error:', err);
+        })
+        .finally(() => {
+            isSyncing = false;
         });
 }
 
@@ -317,7 +395,7 @@ function saveDocument() {
     if (!currentDocumentId) return;
 
     const content = document.getElementById('document-text').value;
-    console.log('[SAVE] Content length:', content.length);
+    console.log('[SAVE] Final save');
 
     const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
     const options = {
@@ -332,7 +410,7 @@ function saveDocument() {
             return res.json();
         })
         .then(data => {
-            console.log('[SAVE] Saved successfully');
+            console.log('[SAVE] Final save successful');
             lastSaveTime = new Date();
             updateSaveTime();
         })
@@ -345,28 +423,27 @@ function updateSaveTime() {
     if (!lastSaveTime) return;
 
     const now = new Date();
-    const diff = Math.floor((now - lastSaveTime) / 1000);
+    const diff = now - lastSaveTime; // milliseconds
 
     let timeStr;
-    if (diff < 60) {
-        timeStr = 'just now';
-    } else if (diff < 3600) {
-        timeStr = `${Math.floor(diff / 60)}m ago`;
+    if (diff < 1000) {
+        timeStr = `${diff}ms ago`;
+    } else if (diff < 60000) {
+        timeStr = `${Math.floor(diff / 1000)}s ago`;
+    } else if (diff < 3600000) {
+        timeStr = `${Math.floor(diff / 60000)}m ago`;
     } else {
-        timeStr = `${Math.floor(diff / 3600)}h ago`;
+        timeStr = `${Math.floor(diff / 3600000)}h ago`;
     }
 
-    document.getElementById('auto-save-time').textContent = `Last saved: ${timeStr}`;
+    const timeEl = document.getElementById('auto-save-time');
+    if (timeEl) {
+        timeEl.textContent = `Last saved: ${timeStr}`;
+    }
 }
 
-function broadcastUpdate() {
-    // In a real app, this would use WebSocket
-    // For now, just log it
-    console.log('[BROADCAST] Update sent');
-}
-
-// Refresh save time display
-setInterval(updateSaveTime, 60000); // Update every minute
+// Refresh save time display every 100ms for millisecond precision
+setInterval(updateSaveTime, 100);
 
 // Close modal when clicking outside
 document.addEventListener('click', (e) => {
