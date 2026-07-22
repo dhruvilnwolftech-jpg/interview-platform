@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('API Base:', API_BASE);
 });
 
-// ============ DOCUMENT EDITOR FUNCTIONS ============
+// ============ DOCUMENT EDITOR - ZERO BLINKING VERSION ============
 
 let currentDocumentId = null;
 let currentDocumentRole = null;
@@ -185,7 +185,7 @@ let isSyncing = false;
 let lastSaveTime = null;
 let lastSyncedContent = '';
 let lastContentFromServer = '';
-let lastSaveAttemptTime = 0;
+let lastUserInteractionTime = 0;
 
 function viewDocumentEditor(role) {
     if (role === 'support') {
@@ -196,19 +196,12 @@ function viewDocumentEditor(role) {
     currentDocumentRole = role;
 
     document.getElementById('document-modal').classList.remove('hidden');
-
-    // Load document from backend
     loadDocument();
-
-    // Start auto-save and real-time sync
-    startAutoSave();
-    startRealtimeSync();
+    startSmartAutoSave();
 }
 
 function loadDocument() {
     if (!currentDocumentId) return;
-
-    console.log('[LOAD] Document ID:', currentDocumentId);
 
     const url = `${API_BASE}/api/documents/${currentDocumentId}`;
 
@@ -218,18 +211,17 @@ function loadDocument() {
             return res.json();
         })
         .then(data => {
-            console.log('[LOAD] Received content length:', (data.content || '').length);
             const textarea = document.getElementById('document-text');
             textarea.value = data.content || '';
             lastSyncedContent = data.content || '';
             lastContentFromServer = data.content || '';
             textarea.focus();
             updateCharCount();
-            showSaveStatus('✓ Loaded', '#28a745');
+            showSaveStatus('✓ Loaded', '#10b981');
         })
         .catch(err => {
             console.error('[LOAD] Error:', err);
-            showSaveStatus('✗ Failed', '#dc3545');
+            showSaveStatus('✗ Error', '#ef4444');
         });
 }
 
@@ -238,7 +230,6 @@ function closeDocumentEditor() {
     currentDocumentId = null;
     currentDocumentRole = null;
 
-    // Stop intervals
     if (autoSaveInterval) {
         clearInterval(autoSaveInterval);
         autoSaveInterval = null;
@@ -248,56 +239,45 @@ function closeDocumentEditor() {
         syncInterval = null;
     }
 
-    // Final save
     saveDocument();
 }
 
-function startAutoSave() {
-    // Clear existing interval
-    if (autoSaveInterval) {
-        clearInterval(autoSaveInterval);
-    }
-    if (syncInterval) {
-        clearInterval(syncInterval);
-    }
+function startSmartAutoSave() {
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
+    if (syncInterval) clearInterval(syncInterval);
 
     const textarea = document.getElementById('document-text');
+    lastUserInteractionTime = Date.now();
 
-    // Auto-save every 500ms (reduced frequency to prevent blinking)
-    autoSaveInterval = setInterval(() => {
-        autoSaveDocument();
-    }, 500);
-
-    // Sync every 800ms but ONLY if user is not typing (more conservative)
-    let lastTypedTime = Date.now();
+    // Track user interaction (typing, pasting, etc.)
     textarea.addEventListener('input', () => {
-        lastTypedTime = Date.now();
+        lastUserInteractionTime = Date.now();
         updateCharCount();
     });
 
-    syncInterval = setInterval(() => {
-        // Only sync if user hasn't typed in last 300ms
-        if (Date.now() - lastTypedTime > 300) {
-            syncDocumentContent();
+    textarea.addEventListener('keydown', () => {
+        lastUserInteractionTime = Date.now();
+    });
+
+    textarea.addEventListener('paste', () => {
+        lastUserInteractionTime = Date.now();
+    });
+
+    // Save every 800ms but ONLY if user hasn't interacted in 400ms
+    autoSaveInterval = setInterval(() => {
+        const idleTime = Date.now() - lastUserInteractionTime;
+        if (idleTime > 400) {
+            autoSaveDocument();
         }
     }, 800);
 
-    // Save immediately on paste AND force sync after pause
-    textarea.addEventListener('paste', () => {
-        setTimeout(() => {
-            console.log('[PASTE] Detected - saving immediately');
-            autoSaveDocument();
-            // Force sync after 150ms (after paste settles)
-            setTimeout(() => {
-                syncDocumentContent();
-            }, 150);
-        }, 20);
-    });
-}
-
-function startRealtimeSync() {
-    // Sync is now handled in startAutoSave() with smart typing detection
-    // This function is kept for compatibility but syncing is more intelligent now
+    // Sync every 1200ms but ONLY if user hasn't interacted in 600ms
+    syncInterval = setInterval(() => {
+        const idleTime = Date.now() - lastUserInteractionTime;
+        if (idleTime > 600) {
+            syncDocumentContent();
+        }
+    }, 1200);
 }
 
 function updateCharCount() {
@@ -321,21 +301,13 @@ function autoSaveDocument() {
 
     const textarea = document.getElementById('document-text');
     const content = textarea.value;
-    const now = Date.now();
 
-    // Only save if content actually changed
     if (content === lastSyncedContent) {
         return;
     }
 
-    // Debounce: don't save too frequently
-    if ((now - lastSaveAttemptTime) < 200) {
-        return;
-    }
-
     isAutoSaving = true;
-    lastSyncedContent = content; // Update BEFORE sending to prevent overwrite
-    lastSaveAttemptTime = now;
+    lastSyncedContent = content;
 
     const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
     const options = {
@@ -344,15 +316,12 @@ function autoSaveDocument() {
         body: JSON.stringify({ content: content })
     };
 
-    console.log('[AUTO-SAVE] Saving', content.length, 'chars');
-
     fetch(url, options)
         .then(res => {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
         })
         .then(data => {
-            console.log('[AUTO-SAVE] Success');
             lastSaveTime = new Date();
             showSaveStatus('✓ Saved', '#10b981');
             updateSaveTime();
@@ -369,6 +338,12 @@ function autoSaveDocument() {
 function syncDocumentContent() {
     if (!currentDocumentId || isSyncing) return;
 
+    // NEVER sync while user is typing - this prevents all blinking
+    const idleTime = Date.now() - lastUserInteractionTime;
+    if (idleTime < 600) {
+        return;
+    }
+
     isSyncing = true;
     const url = `${API_BASE}/api/documents/${currentDocumentId}`;
 
@@ -382,19 +357,15 @@ function syncDocumentContent() {
             const textarea = document.getElementById('document-text');
             const localContent = textarea.value;
 
-            // CRITICAL FIX: Only sync if no changes on this device
-            // If server content is new AND local content is exactly what we last saved
+            // CRITICAL: Only update if BOTH are true:
+            // 1. Server has new content
+            // 2. Local content matches what we last saved (user is idle)
             if (serverContent !== lastContentFromServer && localContent === lastSyncedContent) {
-                console.log('[SYNC] Updating from server: ', lastContentFromServer.length, '→', serverContent.length);
                 lastContentFromServer = serverContent;
 
-                // Save cursor position
                 const cursorPos = textarea.selectionStart;
-
-                // Update content
                 textarea.value = serverContent;
 
-                // Restore cursor (but limit to new content length)
                 const newCursorPos = Math.min(cursorPos, serverContent.length);
                 textarea.selectionStart = newCursorPos;
                 textarea.selectionEnd = newCursorPos;
@@ -402,8 +373,6 @@ function syncDocumentContent() {
                 updateCharCount();
                 showSaveStatus('✓ Synced', '#10b981');
             } else if (serverContent !== lastContentFromServer) {
-                // Server changed but we're editing - just update our knowledge
-                console.log('[SYNC] Server changed but user editing - NOT updating');
                 lastContentFromServer = serverContent;
             }
         })
@@ -419,8 +388,6 @@ function saveDocument() {
     if (!currentDocumentId) return;
 
     const content = document.getElementById('document-text').value;
-    console.log('[SAVE] Final save');
-
     const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
     const options = {
         method: 'POST',
@@ -434,7 +401,6 @@ function saveDocument() {
             return res.json();
         })
         .then(data => {
-            console.log('[SAVE] Final save successful');
             lastSaveTime = new Date();
             updateSaveTime();
         })
@@ -447,17 +413,15 @@ function updateSaveTime() {
     if (!lastSaveTime) return;
 
     const now = new Date();
-    const diff = now - lastSaveTime; // milliseconds
+    const diff = now - lastSaveTime;
 
     let timeStr;
     if (diff < 1000) {
         timeStr = `${diff}ms ago`;
     } else if (diff < 60000) {
         timeStr = `${Math.floor(diff / 1000)}s ago`;
-    } else if (diff < 3600000) {
-        timeStr = `${Math.floor(diff / 60000)}m ago`;
     } else {
-        timeStr = `${Math.floor(diff / 3600000)}h ago`;
+        timeStr = `${Math.floor(diff / 60000)}m ago`;
     }
 
     const timeEl = document.getElementById('auto-save-time');
@@ -466,10 +430,8 @@ function updateSaveTime() {
     }
 }
 
-// Refresh save time display every 100ms for millisecond precision
 setInterval(updateSaveTime, 100);
 
-// Close modal when clicking outside
 document.addEventListener('click', (e) => {
     const modal = document.getElementById('document-modal');
     if (e.target === modal) {

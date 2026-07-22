@@ -4,164 +4,238 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interview Platform</title>
+    <meta name="description" content="Professional Interview Platform - Real-time collaborative document editing">
+    <title>Interview Platform - Secure Video Interview & Document Collaboration</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
     <div id="app">
-        <!-- Auth Container -->
+        <!-- ============ AUTH SCREEN ============ -->
         <div id="auth-container" class="auth-screen active">
-            <div class="auth-card">
-                <div class="auth-logo">🎙️</div>
-                <h1>Interview Platform</h1>
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-logo">📱</div>
 
-                <!-- Login Form -->
-                <div id="login-form" class="auth-form active">
-                    <h2>Login</h2>
-                    <input type="email" id="login-email" placeholder="Email" class="input-field">
-                    <input type="password" id="login-password" placeholder="Password" class="input-field">
-                    <button onclick="handleLogin()" class="btn btn-primary btn-lg">Login</button>
-                    <p class="auth-switch">No account? <a href="#" onclick="switchAuthForm()">Register</a></p>
+                    <h1>Interview Platform</h1>
+                    <p>Professional video interviews with real-time document collaboration</p>
+
+                    <!-- Login Form -->
+                    <form id="login-form" class="auth-form active" onsubmit="handleLogin(); return false;">
+                        <h2>Welcome Back</h2>
+                        <div class="form-group">
+                            <label for="login-email">Email Address</label>
+                            <input type="email" id="login-email" placeholder="your@email.com" class="input-field"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Password</label>
+                            <input type="password" id="login-password" placeholder="••••••••" class="input-field"
+                                required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg">Login</button>
+                        <div class="form-footer">
+                            Don't have an account? <a href="#" onclick="switchAuthForm(); return false;"
+                                class="auth-link">Create one</a>
+                        </div>
+                    </form>
+
+                    <!-- Register Form -->
+                    <form id="register-form" class="auth-form" onsubmit="handleRegister(); return false;">
+                        <h2>Get Started</h2>
+                        <div class="form-group">
+                            <label for="register-name">Full Name</label>
+                            <input type="text" id="register-name" placeholder="John Doe" class="input-field" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-email">Email Address</label>
+                            <input type="email" id="register-email" placeholder="your@email.com" class="input-field"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-password">Password</label>
+                            <input type="password" id="register-password" placeholder="••••••••" class="input-field"
+                                required>
+                        </div>
+                        <div class="form-group">
+                            <label for="register-type">I am a:</label>
+                            <select id="register-type" class="select-field" required>
+                                <option value="candidate">Candidate</option>
+                                <option value="support">Interview Support Person</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg">Create Account</button>
+                        <div class="form-footer">
+                            Already have account? <a href="#" onclick="switchAuthForm(); return false;"
+                                class="auth-link">Login</a>
+                        </div>
+                    </form>
                 </div>
-
-                <!-- Register Form -->
-                <div id="register-form" class="auth-form">
-                    <h2>Create Account</h2>
-                    <input type="text" id="register-name" placeholder="Full Name" class="input-field">
-                    <input type="email" id="register-email" placeholder="Email" class="input-field">
-                    <input type="password" id="register-password" placeholder="Password" class="input-field">
-                    <select id="register-type" class="input-field">
-                        <option value="candidate">I'm a Candidate</option>
-                        <option value="support">I'm Support Staff</option>
-                    </select>
-                    <button onclick="handleRegister()" class="btn btn-primary btn-lg">Register</button>
-                    <p class="auth-switch">Have account? <a href="#" onclick="switchAuthForm()">Login</a></p>
-                </div>
-
-                <div id="auth-error" class="error hidden"></div>
             </div>
         </div>
 
-        <!-- Main App Container -->
+        <!-- ============ APP SCREEN ============ -->
         <div id="app-container" class="hidden">
-            <!-- Navbar -->
-            <nav class="navbar">
-                <div class="nav-container">
-                    <div class="nav-logo">🎙️ Interview Platform</div>
-                    <div class="nav-menu">
-                        <span id="user-info">User</span>
-                        <button onclick="logout()" class="btn btn-secondary">Logout</button>
-                    </div>
+            <!-- Header -->
+            <header class="app-header">
+                <div class="header-left">
+                    <h1>📱 Interview Platform</h1>
                 </div>
-            </nav>
+                <div class="header-right">
+                    <div class="user-badge" id="user-info">User</div>
+                    <button onclick="logout()" class="btn-logout">Logout</button>
+                </div>
+            </header>
 
-            <!-- Support Person View -->
-            <div id="support-view" class="view active">
-                <div class="container">
-                    <div class="view-header">
-                        <h1>Support Dashboard</h1>
-                        <p>Create interview sessions</p>
+            <!-- Main Content -->
+            <main class="app-content">
+                <!-- Support Person View -->
+                <div id="support-view" class="view">
+                    <!-- Session Controls -->
+                    <div class="card card-hero">
+                        <h2>🎯 Interview Session Manager</h2>
+                        <p class="section-desc">Create a new interview session and share the code with candidates</p>
+                        <button onclick="createSession()" class="btn btn-primary btn-lg">
+                            <span class="btn-icon">➕</span> Create New Session
+                        </button>
                     </div>
 
-                    <div class="card">
-                        <h2>Create New Session</h2>
-                        <button onclick="createSession()" class="btn btn-primary btn-lg">Create Session</button>
-                    </div>
-
+                    <!-- Session Created Info -->
                     <div id="session-created" class="card hidden">
-                        <h2>✅ Session Created!</h2>
+                        <div class="card-header">
+                            <h3>✅ Session Created Successfully!</h3>
+                            <p class="card-subtitle">Share this code with your candidate</p>
+                        </div>
+
                         <div class="session-details">
-                            <div class="detail-item">
-                                <span class="label">Session Code:</span>
-                                <span id="session-code" class="value highlight">------</span>
-                                <button onclick="copyCode()" class="btn-small">Copy</button>
+                            <div class="detail-row">
+                                <div class="detail-label">Session Code</div>
+                                <div class="detail-value-group">
+                                    <span id="session-code" class="detail-value highlight">------</span>
+                                    <button onclick="copyCode()" class="btn-copy">📋 Copy</button>
+                                </div>
                             </div>
-                            <div class="detail-item">
-                                <span class="label">Session ID:</span>
-                                <span id="session-id" class="value">------</span>
+
+                            <div class="detail-row">
+                                <div class="detail-label">Session ID</div>
+                                <span id="session-id" class="detail-value">------</span>
                             </div>
-                            <div class="detail-item">
-                                <span class="label">Document ID:</span>
-                                <span id="doc-id" class="value">------</span>
+
+                            <div class="detail-row">
+                                <div class="detail-label">Document ID</div>
+                                <span id="doc-id" class="detail-value">------</span>
                             </div>
                         </div>
-                        <button onclick="viewDocumentEditor('support')" class="btn btn-success btn-lg">View
-                            Document</button>
-                        <button onclick="resetSession()" class="btn btn-secondary btn-lg">Create Another</button>
+
+                        <div class="button-group">
+                            <button onclick="viewDocumentEditor('support')" class="btn btn-success btn-lg">
+                                <span class="btn-icon">📝</span> View Document
+                            </button>
+                            <button onclick="resetSession()" class="btn btn-secondary btn-lg">
+                                <span class="btn-icon">🔄</span> Create Another
+                            </button>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Candidate View -->
-            <div id="candidate-view" class="view">
-                <div class="container">
-                    <div class="view-header">
-                        <h1>Join Interview</h1>
-                        <p>Enter session code to join</p>
+                <!-- Candidate View -->
+                <div id="candidate-view" class="view">
+                    <!-- Join Session Controls -->
+                    <div class="card card-hero">
+                        <h2>🎤 Join Interview Session</h2>
+                        <p class="section-desc">Enter the session code provided by your interviewer</p>
+
+                        <div class="input-group">
+                            <input type="text" id="session-code-input" placeholder="Enter session code (e.g., ABC123)"
+                                class="input-field" maxlength="6">
+                            <button onclick="joinSession()" class="btn btn-primary">
+                                <span class="btn-icon">▶</span> Join
+                            </button>
+                        </div>
                     </div>
 
-                    <div class="card">
-                        <h2>Enter Session Code</h2>
-                        <input type="text" id="session-code-input" placeholder="e.g., ABC123" maxlength="6"
-                            class="input-field">
-                        <button onclick="joinSession()" class="btn btn-primary btn-lg">Join</button>
-                    </div>
-
+                    <!-- Session Joined Info -->
                     <div id="joined-session" class="card hidden">
-                        <h2>✅ Session Joined!</h2>
+                        <div class="card-header">
+                            <h3>✅ Session Joined!</h3>
+                            <p class="card-subtitle">You're connected with the interviewer</p>
+                        </div>
+
                         <div class="session-details">
-                            <div class="detail-item">
-                                <span class="label">Session Code:</span>
-                                <span id="joined-code" class="value">------</span>
+                            <div class="detail-row">
+                                <div class="detail-label">Session Code</div>
+                                <span id="joined-code" class="detail-value">------</span>
                             </div>
-                            <div class="detail-item">
-                                <span class="label">Document ID:</span>
-                                <span id="joined-doc-id" class="value">------</span>
-                            </div>
-                            <div class="detail-item">
-                                <span class="label">Support Person ID:</span>
-                                <span id="support-id" class="value">------</span>
-                            </div>
-                        </div>
-                        <button onclick="viewDocumentEditor('candidate')" class="btn btn-success btn-lg">View
-                            Document</button>
-                    </div>
-                </div>
-            </div>
-        </div>
 
-        <!-- Document Editor Modal -->
-        <div id="document-modal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>📝 Document Editor</h2>
-                    <div class="modal-status">
-                        <span class="status-indicator"></span>
-                        <span id="save-status">Auto-saving...</span>
-                    </div>
-                    <button onclick="closeDocumentEditor()" class="modal-close">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <textarea id="document-text" class="document-textarea"
-                        placeholder="Start typing... (auto-saves every 2 seconds)"></textarea>
-                    <div class="document-footer">
-                        <div class="document-info">
-                            <span id="char-count">0 characters</span> •
-                            <span id="auto-save-time">Last saved: just now</span>
-                        </div>
-                        <div class="document-actions">
-                            <button onclick="closeDocumentEditor()" class="btn btn-secondary">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+                            <div class="detail-row">
+                                <div class="detail-label">Document ID</div>
+                                <span id="joined-doc-id" class="detail-value">------</span>
+                            </div>
 
-        <!-- Toast -->
-        <div id="toast" class="toast"></div>
+                            <div class="detail-row">
+                                <div class="detail-label">Interviewer ID</div>
+                                <span id="support-id" class="detail-value">------</span>
+                            </div>
+                        </div>
+
+                        <button onclick="viewDocumentEditor('candidate')" class="btn btn-success btn-lg"
+                            style="width: 100%;">
+                            <span class="btn-icon">📝</span> View Shared Document
+                        </button>
+                    </div>
+                </div>
+            </main>
+        </div>
     </div>
 
+    <!-- ============ DOCUMENT EDITOR MODAL ============ -->
+    <div id="document-modal" class="modal hidden">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <div class="modal-header-left">
+                    <h2>📄 Document Editor</h2>
+                </div>
+                <div class="modal-status">
+                    <span class="status-indicator"></span>
+                    <span id="save-status">Connected</span>
+                </div>
+                <button onclick="closeDocumentEditor()" class="modal-close" title="Close">✕</button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="modal-body">
+                <textarea id="document-text" class="document-textarea" placeholder="Start typing or paste your code here...
+                    
+Your code formatting will be preserved exactly as you paste it." spellcheck="false"></textarea>
+
+                <!-- Modal Footer -->
+                <div class="document-footer">
+                    <div class="document-info">
+                        <div class="info-item">
+                            <span class="info-label">Characters:</span>
+                            <span id="char-count" class="info-value">0</span>
+                        </div>
+                        <div class="info-separator">•</div>
+                        <div class="info-item">
+                            <span id="auto-save-time" class="info-value">Last saved: --</span>
+                        </div>
+                    </div>
+                    <button onclick="closeDocumentEditor()" class="btn btn-secondary">
+                        <span class="btn-icon">✕</span> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
     <script src="app.js"></script>
 </body>
 
