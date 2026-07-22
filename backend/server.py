@@ -1,236 +1,248 @@
+#!/usr/bin/env python3
 """
-Interview Platform Backend - Flask API
-Simple, robust REST API for interview management
+Interview Platform Backend - Minimal Version
+Handles authentication and session management
 """
 
 from flask import Flask, request, jsonify
-from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 import uuid
+import json
 import os
-from dotenv import load_dotenv
+import sys
 
-load_dotenv()
-
-# Initialize Flask app
+# Create Flask app
 app = Flask(__name__)
-
-# Configuration
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'interview-platform-secret-key')
-# Use backend directory for database
-db_path = os.path.join(os.path.dirname(__file__), 'interview_platform.db')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['JSON_SORT_KEYS'] = False
 
-# Enable CORS - BEFORE anything else
-CORS(app, 
-     resources={r"/api/*": {"origins": "*"}},
-     methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
-     allow_headers=["Content-Type"],
-     supports_credentials=False)
+# Enable CORS with @after_request
+@app.after_request
+def add_cors(response):
+    """Add CORS headers to all responses"""
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS,PATCH'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Accept,Authorization'
+    response.headers['Access-Control-Max-Age'] = '3600'
+    return response
 
-# Initialize database
-db = SQLAlchemy(app)
+# In-memory database
+DB = {
+    'users': {},
+    'sessions': {}
+}
 
-# ==================== DATABASE MODELS ====================
+# ============ AUTH ENDPOINTS ============
 
-class InterviewSession(db.Model):
-    __tablename__ = 'interview_sessions'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    code = db.Column(db.String(10), unique=True, nullable=False, index=True)
-    support_person_id = db.Column(db.String(36), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    is_active = db.Column(db.Boolean, default=True)
-    
-    documents = db.relationship('Document', backref='session', lazy=True, cascade='all, delete-orphan')
-    connections = db.relationship('UserConnection', backref='session', lazy=True, cascade='all, delete-orphan')
-
-
-class Document(db.Model):
-    __tablename__ = 'documents'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    session_id = db.Column(db.String(36), db.ForeignKey('interview_sessions.id'), nullable=False)
-    content = db.Column(db.Text, default='')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-
-class UserConnection(db.Model):
-    __tablename__ = 'user_connections'
-    
-    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    session_id = db.Column(db.String(36), db.ForeignKey('interview_sessions.id'), nullable=False)
-    user_id = db.Column(db.String(36), nullable=False)
-    connected_at = db.Column(db.DateTime, default=datetime.utcnow)
-    user_type = db.Column(db.String(20), nullable=False, default='user')
-
-
-# ==================== ERROR HANDLERS ====================
-
-@app.errorhandler(400)
-def bad_request(error):
-    return jsonify({'error': 'Bad request'}), 400
-
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Not found'}), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    db.session.rollback()
-    return jsonify({'error': 'Internal server error', 'details': str(error)}), 500
-
-
-# ==================== API ENDPOINTS ====================
-
-@app.route('/', methods=['GET'])
-def root():
-    """Root endpoint"""
-    return jsonify({
-        'status': 'Interview Platform API',
-        'version': '1.0.0',
-        'endpoints': {
-            'health': '/api/health',
-            'sessions_create': 'POST /api/sessions',
-            'sessions_verify': 'GET /api/sessions/<code>',
-            'admin_sessions': 'GET /api/admin/sessions',
-            'admin_documents': 'GET /api/admin/documents/<id>'
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    """Register new user"""
+    print(f"[REGISTER] Received POST request")
+    try:
+        payload = request.get_json()
+        print(f"[REGISTER] Payload: {payload}")
+        
+        if not payload:
+            return jsonify({'error': 'No data'}), 400
+        
+        email = payload.get('email', '').strip()
+        password = payload.get('password', '')
+        full_name = payload.get('full_name', '').strip()
+        user_type = payload.get('user_type', 'candidate')
+        
+        if not email or not password or not full_name:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        if email in DB['users']:
+            return jsonify({'error': 'Email already registered'}), 409
+        
+        user_id = str(uuid.uuid4())
+        DB['users'][email] = {
+            'id': user_id,
+            'email': email,
+            'password': password,
+            'full_name': full_name,
+            'user_type': user_type
         }
-    })
+        
+        print(f"[REGISTER] User registered: {email}")
+        return jsonify({
+            'success': True,
+            'user_id': user_id,
+            'message': 'Registration successful'
+        }), 201
+        
+    except Exception as e:
+        print(f"[REGISTER] ERROR: {e}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
-@app.route('/api/health', methods=['GET'])
-def health():
-    """Health check"""
-    return jsonify({'status': 'ok', 'timestamp': datetime.utcnow().isoformat()}), 200
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Login user"""
+    print(f"[LOGIN] Received POST request")
+    try:
+        payload = request.get_json()
+        print(f"[LOGIN] Payload: {payload}")
+        
+        if not payload:
+            return jsonify({'error': 'No data'}), 400
+        
+        email = payload.get('email', '').strip()
+        password = payload.get('password', '')
+        
+        if not email or not password:
+            return jsonify({'error': 'Missing credentials'}), 400
+        
+        if email not in DB['users']:
+            return jsonify({'error': 'User not found'}), 401
+        
+        user = DB['users'][email]
+        if user['password'] != password:
+            return jsonify({'error': 'Invalid password'}), 401
+        
+        print(f"[LOGIN] User logged in: {email}")
+        return jsonify({
+            'success': True,
+            'user_id': user['id'],
+            'email': user['email'],
+            'full_name': user['full_name'],
+            'user_type': user['user_type'],
+            'message': 'Login successful'
+        }), 200
+        
+    except Exception as e:
+        print(f"[LOGIN] ERROR: {e}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
+
+# ============ SESSION ENDPOINTS ============
 
 @app.route('/api/sessions', methods=['POST'])
 def create_session():
-    """Create new interview session"""
+    """Create interview session"""
+    print(f"[SESSION] Received POST request")
     try:
-        data = request.get_json() or {}
-        support_person_id = data.get('support_person_id', 'unknown')
+        payload = request.get_json() or {}
+        print(f"[SESSION] Payload: {payload}")
         
-        # Generate 6-digit code
+        support_person_id = payload.get('support_person_id')
+        
+        if not support_person_id:
+            return jsonify({'error': 'support_person_id required'}), 400
+        
         code = str(uuid.uuid4())[:6].upper()
+        session_id = str(uuid.uuid4())
+        doc_id = str(uuid.uuid4())
         
-        # Create session
-        session = InterviewSession(
-            code=code,
-            support_person_id=support_person_id
-        )
-        db.session.add(session)
-        db.session.flush()
-        
-        # Create document
-        document = Document(session_id=session.id)
-        db.session.add(document)
-        db.session.commit()
-        
-        return jsonify({
-            'session_id': session.id,
+        DB['sessions'][code] = {
+            'id': session_id,
             'code': code,
-            'document_id': document.id,
-            'created_at': session.created_at.isoformat()
+            'support_person_id': support_person_id,
+            'document_id': doc_id,
+            'created_at': '2026-07-22T00:00:00',
+            'is_active': True
+        }
+        
+        print(f"[SESSION] Session created: {code}")
+        return jsonify({
+            'session_id': session_id,
+            'code': code,
+            'document_id': doc_id,
+            'created_at': '2026-07-22T00:00:00'
         }), 201
-    
+        
     except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        print(f"[SESSION] ERROR: {e}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
 @app.route('/api/sessions/<code>', methods=['GET'])
-def verify_session(code):
-    """Verify session code"""
+def get_session(code):
+    """Get session by code"""
+    print(f"[GET_SESSION] Code: {code}")
     try:
-        session = InterviewSession.query.filter_by(code=code.upper()).first()
+        code_upper = code.upper()
         
-        if not session:
+        if code_upper not in DB['sessions']:
             return jsonify({'error': 'Session not found'}), 404
         
-        if not session.is_active:
-            return jsonify({'error': 'Session inactive'}), 400
-        
-        document = session.documents[0] if session.documents else None
-        
-        if not document:
-            return jsonify({'error': 'No document'}), 404
-        
+        session = DB['sessions'][code_upper]
+        print(f"[GET_SESSION] Found session")
         return jsonify({
-            'session_id': session.id,
-            'code': session.code,
-            'document_id': document.id,
-            'support_person_id': session.support_person_id,
-            'created_at': session.created_at.isoformat()
+            'session_id': session['id'],
+            'code': session['code'],
+            'document_id': session['document_id'],
+            'support_person_id': session['support_person_id'],
+            'created_at': session['created_at']
         }), 200
-    
+        
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"[GET_SESSION] ERROR: {e}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
 @app.route('/api/admin/sessions', methods=['GET'])
 def get_all_sessions():
     """Get all sessions"""
+    print(f"[ADMIN_SESSIONS] Request")
     try:
-        sessions = InterviewSession.query.all()
-        return jsonify({
-            'sessions': [
-                {
-                    'id': s.id,
-                    'code': s.code,
-                    'support_person_id': s.support_person_id,
-                    'created_at': s.created_at.isoformat(),
-                    'is_active': s.is_active,
-                    'document_count': len(s.documents),
-                    'connection_count': len([c for c in s.connections if c.user_type != 'disconnected'])
-                }
-                for s in sessions
-            ]
-        }), 200
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/admin/documents/<doc_id>', methods=['GET'])
-def get_document(doc_id):
-    """Get document details"""
-    try:
-        document = Document.query.get(doc_id)
+        sessions_list = list(DB['sessions'].values())
+        print(f"[ADMIN_SESSIONS] Found {len(sessions_list)} sessions")
+        return jsonify({'sessions': sessions_list}), 200
         
-        if not document:
-            return jsonify({'error': 'Document not found'}), 404
-        
-        return jsonify({
-            'id': document.id,
-            'session_id': document.session_id,
-            'content': document.content,
-            'created_at': document.created_at.isoformat(),
-            'updated_at': document.updated_at.isoformat()
-        }), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"[ADMIN_SESSIONS] ERROR: {e}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 
-# ==================== INITIALIZATION ====================
+# ============ HEALTH ENDPOINTS ============
 
-def init_db():
-    """Initialize database"""
-    try:
-        with app.app_context():
-            db.create_all()
-            print("✓ Database initialized")
-    except Exception as e:
-        print(f"✗ Database error: {e}")
+@app.route('/api/health', methods=['GET'])
+def health():
+    """Health check"""
+    return jsonify({'status': 'ok'})
 
+
+@app.route('/', methods=['GET'])
+def root():
+    """Root endpoint"""
+    return jsonify({'status': 'Interview Platform API', 'version': '1.0.0'})
+
+
+# ============ ERROR HANDLERS ============
+
+@app.errorhandler(404)
+def not_found(e):
+    """Handle 404"""
+    return jsonify({'error': 'Endpoint not found'}), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    """Handle 405"""
+    print(f"[ERROR 405] {request.method} {request.path}")
+    return jsonify({'error': 'Method not allowed'}), 405
+
+
+@app.errorhandler(500)
+def server_error(e):
+    """Handle 500"""
+    print(f"[ERROR 500] {str(e)}")
+    return jsonify({'error': 'Internal server error'}), 500
+
+
+# ============ RUN ============
 
 if __name__ == '__main__':
-    init_db()
-    print("Starting Interview Platform Backend...")
-    print("Server: http://0.0.0.0:5000")
-    print("API: http://localhost:5000/api/health")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    print("=" * 60)
+    print("Interview Platform Backend")
+    print("=" * 60)
+    print("Starting server on http://0.0.0.0:5000")
+    print("=" * 60)
+    
+    # Run with proper settings
+    app.run(
+        host='0.0.0.0',
+        port=5000,
+        debug=True,
+        use_reloader=True
+    )
