@@ -374,6 +374,136 @@ body {
     background: var(--danger);
 }
 
+/* Modal - Fullscreen Document Editor */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal:not(.hidden) {
+    display: flex;
+}
+
+.modal.hidden {
+    display: none !important;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 0;
+    width: 95%;
+    height: 95vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f9fa;
+}
+
+.modal-header h2 {
+    margin: 0;
+    color: var(--dark);
+    font-size: 1.5rem;
+}
+
+.modal-status {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #28a745;
+    margin-right: 0.5rem;
+}
+
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    color: #6c757d;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: var(--dark);
+}
+
+.modal-body {
+    padding: 0;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.document-textarea {
+    flex: 1;
+    padding: 1.5rem;
+    border: none;
+    border-radius: 0;
+    font-size: 1rem;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    resize: none;
+    margin: 0;
+    line-height: 1.6;
+    background: #fff;
+    color: #333;
+}
+
+.document-textarea:focus {
+    outline: none;
+    box-shadow: inset 0 0 0 2px rgba(0, 102, 204, 0.2);
+}
+
+.document-footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    border-top: 2px solid var(--border);
+    background: #f8f9fa;
+}
+
+.document-info {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.document-actions {
+    display: flex;
+    gap: 1rem;
+}
+
 @keyframes slideIn {
     from {
         transform: translateX(400px);

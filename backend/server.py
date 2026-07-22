@@ -27,7 +27,8 @@ def add_cors(response):
 # In-memory database
 DB = {
     'users': {},
-    'sessions': {}
+    'sessions': {},
+    'documents': {}
 }
 
 # ============ AUTH ENDPOINTS ============
@@ -191,6 +192,59 @@ def get_all_sessions():
         
     except Exception as e:
         print(f"[ADMIN_SESSIONS] ERROR: {e}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+
+# ============ DOCUMENT ENDPOINTS ============
+
+@app.route('/api/documents/<doc_id>', methods=['GET'])
+def get_document(doc_id):
+    """Get document content"""
+    print(f"[GET_DOC] ID: {doc_id}")
+    try:
+        if doc_id not in DB['documents']:
+            # Return empty document if not exists
+            DB['documents'][doc_id] = {'content': '', 'created_at': '2026-07-22T00:00:00'}
+        
+        doc = DB['documents'][doc_id]
+        print(f"[GET_DOC] Found document, content length: {len(doc['content'])}")
+        return jsonify({
+            'document_id': doc_id,
+            'content': doc['content'],
+            'created_at': doc['created_at']
+        }), 200
+        
+    except Exception as e:
+        print(f"[GET_DOC] ERROR: {e}")
+        return jsonify({'error': f'Server error: {str(e)}'}), 500
+
+
+@app.route('/api/documents/<doc_id>/save', methods=['POST'])
+def save_document(doc_id):
+    """Save document content"""
+    print(f"[SAVE_DOC] ID: {doc_id}")
+    try:
+        payload = request.get_json() or {}
+        print(f"[SAVE_DOC] Payload keys: {payload.keys()}")
+        
+        content = payload.get('content', '')
+        print(f"[SAVE_DOC] Content length: {len(content)}")
+        
+        DB['documents'][doc_id] = {
+            'content': content,
+            'created_at': '2026-07-22T00:00:00',
+            'updated_at': '2026-07-22T00:00:00'
+        }
+        
+        print(f"[SAVE_DOC] Document saved successfully")
+        return jsonify({
+            'success': True,
+            'document_id': doc_id,
+            'message': 'Document saved'
+        }), 200
+        
+    except Exception as e:
+        print(f"[SAVE_DOC] ERROR: {e}")
         return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 

@@ -173,3 +173,205 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Interview Platform Loaded');
     console.log('API Base:', API_BASE);
 });
+
+// Document Editor Functions
+let currentDocumentId = null;
+let currentDocumentRole = null;
+let autoSaveInterval = null;
+let isAutoSaving = false;
+let lastSaveTime = null;
+
+function viewDocumentEditor(role) {
+    if (role === 'support') {
+        currentDocumentId = document.getElementById('doc-id').textContent;
+    } else {
+        currentDocumentId = document.getElementById('joined-doc-id').textContent;
+    }
+    currentDocumentRole = role;
+
+    document.getElementById('document-modal').classList.remove('hidden');
+
+    // Load document from backend
+    loadDocument();
+
+    // Start auto-save interval
+    startAutoSave();
+}
+
+function loadDocument() {
+    if (!currentDocumentId) return;
+
+    console.log('[LOAD] Document ID:', currentDocumentId);
+
+    const url = `${API_BASE}/api/documents/${currentDocumentId}`;
+    console.log('[LOAD] URL:', url);
+
+    fetch(url)
+        .then(res => {
+            console.log('[LOAD] Response status:', res.status);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            console.log('[LOAD] Received:', data);
+            const textarea = document.getElementById('document-text');
+            textarea.value = data.content || '';
+            textarea.focus();
+            updateCharCount();
+            showSaveStatus('Loaded ✓', '#28a745');
+        })
+        .catch(err => {
+            console.error('[LOAD] Error:', err);
+            showSaveStatus('Failed to load', '#dc3545');
+        });
+}
+
+function closeDocumentEditor() {
+    document.getElementById('document-modal').classList.add('hidden');
+    currentDocumentId = null;
+    currentDocumentRole = null;
+
+    // Stop auto-save
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+        autoSaveInterval = null;
+    }
+
+    // Final save
+    saveDocument();
+}
+
+function startAutoSave() {
+    // Clear existing interval
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+    }
+
+    // Auto-save every 2 seconds
+    autoSaveInterval = setInterval(() => {
+        autoSaveDocument();
+    }, 2000);
+
+    // Also save on textarea input changes
+    const textarea = document.getElementById('document-text');
+    textarea.addEventListener('input', updateCharCount);
+}
+
+function updateCharCount() {
+    const textarea = document.getElementById('document-text');
+    const charCount = textarea.value.length;
+    document.getElementById('char-count').textContent = `${charCount} character${charCount !== 1 ? 's' : ''}`;
+}
+
+function showSaveStatus(message, color = '#6c757d') {
+    const statusEl = document.getElementById('save-status');
+    const indicator = document.querySelector('.status-indicator');
+    statusEl.textContent = message;
+    statusEl.style.color = color;
+    indicator.style.background = color;
+}
+
+function autoSaveDocument() {
+    if (!currentDocumentId || isAutoSaving) return;
+
+    const content = document.getElementById('document-text').value;
+    isAutoSaving = true;
+
+    const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
+    const options = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    };
+
+    console.log('[AUTO-SAVE] Sending...');
+
+    fetch(url, options)
+        .then(res => {
+            console.log('[AUTO-SAVE] Response status:', res.status);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            console.log('[AUTO-SAVE] Success');
+            lastSaveTime = new Date();
+            showSaveStatus('Auto-saved ✓', '#28a745');
+            updateSaveTime();
+
+            // Refresh other clients' views
+            if (currentDocumentRole === 'candidate') {
+                // Candidate can trigger refresh on support side
+                broadcastUpdate();
+            }
+        })
+        .catch(err => {
+            console.error('[AUTO-SAVE] Error:', err);
+            showSaveStatus('Saving...', '#ffc107');
+        })
+        .finally(() => {
+            isAutoSaving = false;
+        });
+}
+
+function saveDocument() {
+    if (!currentDocumentId) return;
+
+    const content = document.getElementById('document-text').value;
+    console.log('[SAVE] Content length:', content.length);
+
+    const url = `${API_BASE}/api/documents/${currentDocumentId}/save`;
+    const options = {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: content })
+    };
+
+    fetch(url, options)
+        .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+        })
+        .then(data => {
+            console.log('[SAVE] Saved successfully');
+            lastSaveTime = new Date();
+            updateSaveTime();
+        })
+        .catch(err => {
+            console.error('[SAVE] Error:', err);
+        });
+}
+
+function updateSaveTime() {
+    if (!lastSaveTime) return;
+
+    const now = new Date();
+    const diff = Math.floor((now - lastSaveTime) / 1000);
+
+    let timeStr;
+    if (diff < 60) {
+        timeStr = 'just now';
+    } else if (diff < 3600) {
+        timeStr = `${Math.floor(diff / 60)}m ago`;
+    } else {
+        timeStr = `${Math.floor(diff / 3600)}h ago`;
+    }
+
+    document.getElementById('auto-save-time').textContent = `Last saved: ${timeStr}`;
+}
+
+function broadcastUpdate() {
+    // In a real app, this would use WebSocket
+    // For now, just log it
+    console.log('[BROADCAST] Update sent');
+}
+
+// Refresh save time display
+setInterval(updateSaveTime, 60000); // Update every minute
+
+// Close modal when clicking outside
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('document-modal');
+    if (e.target === modal) {
+        closeDocumentEditor();
+    }
+});
