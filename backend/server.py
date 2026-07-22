@@ -20,7 +20,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///int
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Enable CORS for all routes
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+CORS(app, 
+     resources={r"/api/*": {"origins": "*"}},
+     methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
+     allow_headers=["Content-Type"])
 
 # Initialize extensions
 db = SQLAlchemy(app)
@@ -89,6 +92,19 @@ class UserConnection(db.Model):
 # ==================== SOCKET.IO EVENTS (DISABLED FOR DEPLOYMENT) ====================
 # WebSocket events are disabled in this deployment version
 # For real-time features, add flask-socketio to requirements and uncomment these handlers
+
+
+# ==================== CORS PREFLIGHT HANDLER ====================
+
+@app.before_request
+def handle_preflight():
+    """Handle CORS preflight requests"""
+    if request.method == "OPTIONS":
+        response = jsonify({'status': 'ok'})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Methods", "GET, POST, OPTIONS, PUT, DELETE")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type")
+        return response, 200
 
 
 # ==================== ROOT ENDPOINT ====================
