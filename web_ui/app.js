@@ -263,21 +263,21 @@ function startSmartAutoSave() {
         lastUserInteractionTime = Date.now();
     });
 
-    // Save every 800ms but ONLY if user hasn't interacted in 400ms
+    // ULTRA-FAST SAVE: Every 300ms, save if idle for only 100ms
     autoSaveInterval = setInterval(() => {
         const idleTime = Date.now() - lastUserInteractionTime;
-        if (idleTime > 400) {
+        if (idleTime > 100) {
             autoSaveDocument();
         }
-    }, 800);
+    }, 300);
 
-    // Sync every 1200ms but ONLY if user hasn't interacted in 600ms
+    // ULTRA-FAST SYNC: Every 150ms, sync if idle for only 50ms
     syncInterval = setInterval(() => {
         const idleTime = Date.now() - lastUserInteractionTime;
-        if (idleTime > 600) {
+        if (idleTime > 50) {
             syncDocumentContent();
         }
-    }, 1200);
+    }, 150);
 }
 
 function updateCharCount() {
@@ -338,17 +338,22 @@ function autoSaveDocument() {
 function syncDocumentContent() {
     if (!currentDocumentId || isSyncing) return;
 
-    // NEVER sync while user is typing - this prevents all blinking
+    // Only skip if actively typing RIGHT NOW
     const idleTime = Date.now() - lastUserInteractionTime;
-    if (idleTime < 600) {
+    if (idleTime < 50) {
         return;
     }
 
     isSyncing = true;
     const url = `${API_BASE}/api/documents/${currentDocumentId}`;
 
-    fetch(url)
+    // Fast timeout - we want instant updates
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    fetch(url, { signal: controller.signal })
         .then(res => {
+            clearTimeout(timeoutId);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return res.json();
         })
@@ -357,10 +362,9 @@ function syncDocumentContent() {
             const textarea = document.getElementById('document-text');
             const localContent = textarea.value;
 
-            // CRITICAL: Only update if BOTH are true:
-            // 1. Server has new content
-            // 2. Local content matches what we last saved (user is idle)
-            if (serverContent !== lastContentFromServer && localContent === lastSyncedContent) {
+            // Check one more time that user isn't typing
+            const currentIdleTime = Date.now() - lastUserInteractionTime;
+            if (currentIdleTime > 50 && serverContent !== lastContentFromServer && localContent === lastSyncedContent) {
                 lastContentFromServer = serverContent;
 
                 const cursorPos = textarea.selectionStart;
@@ -377,10 +381,13 @@ function syncDocumentContent() {
             }
         })
         .catch(err => {
-            console.error('[SYNC] Error:', err);
+            if (err.name !== 'AbortError') {
+                console.error('[SYNC] Error:', err);
+            }
         })
         .finally(() => {
             isSyncing = false;
+            clearTimeout(timeoutId);
         });
 }
 
